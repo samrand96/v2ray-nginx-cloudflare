@@ -23,7 +23,7 @@ To prepare your server and set up the infrastructure, follow these steps:
 
 3. **Clone Repository**: Use the following command to clone the "v2ray-nginx-cdn" repository on your server:
     ```bash
-    git clone https://github.com/samrandhaji/v2ray-nginx-cdn.git
+    git clone https://github.com/samrandhaji/v2ray-nginx-cloudflare.git
     ```
 
 4. **Generate UUID**: Utilize the command below to produce a UUID:
@@ -47,3 +47,10 @@ To prepare your server and set up the infrastructure, follow these steps:
 10. **Generate Client Configuration**: Execute the script "./vmess.py" to create the client configuration, providing a link to access the associated resources.
 
 By following these steps and the corresponding terminal commands, you will efficiently set up the server infrastructure and associated services for your configuration.
+
+-----------------------------
+You are script kiddy? no time to do so? easy haha just run the code below and see the magic
+    ```bash
+    bash <(curl https://raw.githubusercontent.com/samrandhaji/v2ray-nginx-cloudflare/main/easy-install.sh)
+    ```
+
