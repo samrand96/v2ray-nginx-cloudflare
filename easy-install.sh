@@ -23,15 +23,15 @@ cd v2ray-nginx-cloudflare
 UUID=$(cat /proc/sys/kernel/random/uuid)
 
 # Update the <UPSTREAM-UUID> field in config.json
-sed -i "s#<UPSTREAM-UUID>#$UUID#g" v2ray/config/config.json
+sed -i "s#<UPSTREAM-UUID>#$UUID#g" ./v2ray/config/config.json
 
 # Prompt for domain and email
 read -p "Enter your domain: " DOMAIN
 read -p "Enter your email: " EMAIL
 
 # Replace placeholders in docker-compose.yml
-sed -i "s#YOUR_DOMAIN#$DOMAIN#g" docker-compose.yml
-sed -i "s#YOUR_EMAIL#$EMAIL#g" docker-compose.yml
+sed -i "s#YOUR_DOMAIN#$DOMAIN#g" ./docker-compose.yml
+sed -i "s#YOUR_EMAIL#$EMAIL#g" ./docker-compose.yml
 
 # Compose the Docker setup
 docker-compose up -d
