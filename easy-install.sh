@@ -2,8 +2,8 @@
 
 # Check if Docker is installed
 if ! [ -x "$(command -v docker)" ]; then
-  read -p "Docker is not installed. Would you like to install Docker? (yes/no): " INSTALL_DOCKER
-  if [ $INSTALL_DOCKER == "yes" ]; then
+  read -p "Docker is not installed. Do you want to install Docker? (Y/n): " INSTALL_DOCKER
+  if [ ${INSTALL_DOCKER:-Y} == "Y" ]; then
     sudo su -c "bash <(wget -qO- https://get.docker.com)" root
     apt install -y docker-compose
   else
@@ -11,6 +11,8 @@ if ! [ -x "$(command -v docker)" ]; then
     exit 1
   fi
 fi
+
+# Continue with the rest of the script...
 
 
 # Clone the git repository
