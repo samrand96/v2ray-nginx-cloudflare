@@ -16,7 +16,7 @@ fi
 
 
 # Clone the git repository
-git clone https://github.com/samrandhaji/v2ray-nginx-cdn.git
+git clone https://github.com/samrandhaji/v2ray-nginx-cloudflare.git
 cd v2ray-nginx-cdn
 
 # Generate random UUID
