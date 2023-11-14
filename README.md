@@ -49,8 +49,11 @@ To prepare your server and set up the infrastructure, follow these steps:
 By following these steps and the corresponding terminal commands, you will efficiently set up the server infrastructure and associated services for your configuration.
 
 -----------------------------
-Are you script kiddy? no time to do so? easy, haha just run the code below and see the magic
-    ```bash
-    sudo bash <(curl https://raw.githubusercontent.com/samrandhaji/v2ray-nginx-cloudflare/main/easy-install.sh)
-    ```
+Are you script kiddy? no time to do so? easy, haha just run the code below and see the magic:
+
+```bash
+sudo bash <(curl https://raw.githubusercontent.com/samrandhaji/v2ray-nginx-cloudflare/main/easy-install.sh)
+```
+
+---------------------------
 
