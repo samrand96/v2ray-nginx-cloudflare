@@ -21,7 +21,7 @@ To prepare your server and set up the infrastructure, follow these steps:
 
 2. **Install Docker**: Set up Docker and Docker-compose on your server to facilitate containerization.
 
-3. **Clone Repository**: Use the following command to clone the "v2ray-nginx-cdn" repository on your server:
+3. **Clone Repository**: Use the following command to clone the "v2ray-nginx-cloudflare" repository on your server:
     ```bash
     git clone https://github.com/samrandhaji/v2ray-nginx-cloudflare.git
     ```
