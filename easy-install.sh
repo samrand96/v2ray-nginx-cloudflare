@@ -41,5 +41,6 @@ read -p "Do you want to use CDN? (yes/no): " USE_CDN
 if [ $USE_CDN == "yes" ]; then
   # Turn on proxy mode in A record inside the CDN
   # Run the vmess.py file
+  chmod +x vmess.py
   ./vmess.py
 fi
