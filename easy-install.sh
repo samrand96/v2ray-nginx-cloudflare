@@ -37,8 +37,8 @@ sed -i "s#YOUR_EMAIL#$EMAIL#g" ./docker-compose.yml
 docker-compose up -d
 
 # Prompt for CDN usage
-read -p "Do you want to use CDN? (yes/no): " USE_CDN
-if [ $USE_CDN == "yes" ]; then
+read -p "Now go and adjust CDN Settings: In your CDN, activate the proxy option for the record to enhance the delivery capabilities. When you finished press Enter " USE_CDN
+if [ ${USE_CDN:-Y} == "Y" ]; then
   # Turn on proxy mode in A record inside the CDN
   # Run the vmess.py file
   chmod +x vmess.py
