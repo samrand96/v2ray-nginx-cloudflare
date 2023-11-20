@@ -20,7 +20,13 @@ git clone https://github.com/samrandhaji/v2ray-nginx-cloudflare.git
 cd v2ray-nginx-cloudflare
 
 # Generate random UUID
-UUID=$(cat /proc/sys/kernel/random/uuid)
+read -p "Do you want to use a custom UUID? (Y/n): " CUSTOM_UUID
+if [ ${CUSTOM_UUID:-N} == "Y" ]; then
+  read -p "Enter your custom UUID: " UUID
+else
+  UUID=$(cat /proc/sys/kernel/random/uuid)
+fi
+
 
 # Update the <UPSTREAM-UUID> field in config.json
 sed -i "s#<UPSTREAM-UUID>#$UUID#g" ./v2ray/config/config.json
