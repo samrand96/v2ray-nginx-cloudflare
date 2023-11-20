@@ -21,7 +21,7 @@ cd v2ray-nginx-cloudflare
 
 # Generate random UUID
 read -p "Do you want to use a custom UUID? (Y/n): " CUSTOM_UUID
-if [ ${CUSTOM_UUID:-N} == "Y" ]; then
+if [ ${CUSTOM_UUID:-Y} == "Y" ]; then
   read -p "Enter your custom UUID: " UUID
 else
   UUID=$(cat /proc/sys/kernel/random/uuid)
