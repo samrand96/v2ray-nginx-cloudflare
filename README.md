@@ -52,7 +52,7 @@ By following these steps and the corresponding terminal commands, you will effic
 Are you script kiddy? no time to do so? easy, haha just run the code below and see the magic:
 
 ```bash
-sudo bash <(curl https://bit.ly/v2n-install)
+sudo bash <(curl https://raw.githubusercontent.com/samrandhaji/v2ray-nginx-cloudflare/main/easy-install.sh)
 ```
 
 ---------------------------
