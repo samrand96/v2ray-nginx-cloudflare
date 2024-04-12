@@ -23,7 +23,7 @@ To prepare your server and set up the infrastructure, follow these steps:
 
 3. **Clone Repository**: Use the following command to clone the "v2ray-nginx-cloudflare" repository on your server:
     ```bash
-    git clone https://github.com/samrandhaji/v2ray-nginx-cloudflare.git
+    git clone https://github.com/samrand96/v2ray-nginx-cloudflare.git
     ```
 
 4. **Generate UUID**: Utilize the command below to produce a UUID:
@@ -52,7 +52,7 @@ By following these steps and the corresponding terminal commands, you will effic
 Are you script kiddy? no time to do so? easy, haha just run the code below and see the magic:
 
 ```bash
-sudo bash <(curl https://raw.githubusercontent.com/samrandhaji/v2ray-nginx-cloudflare/main/easy-install.sh)
+sudo bash <(curl https://raw.githubusercontent.com/samrand96/v2ray-nginx-cloudflare/main/easy-install.sh)
 ```
 
 ---------------------------
