@@ -25,17 +25,21 @@ fi
 REPO_NAME="v2ray-nginx-cloudflare"
 REPO_URL="https://github.com/samrand96/v2ray-nginx-cloudflare.git"
 
-if [ -d "$REPO_NAME" ]; then
-  echo "Repository $REPO_NAME already exists. Skipping cloning."
+# Check if the repository directory exists and is a Git repository
+if [ -d "$REPO_NAME/.git" ]; then
+  echo "Repository '$REPO_NAME' already exists and is a Git repository. Skipping cloning."
 else
-  if ! git clone "$REPO_URL"; then
+  echo "Cloning repository '$REPO_NAME'..."
+  if git clone "$REPO_URL"; then
+    echo "Repository cloned successfully."
+  else
     echo "Failed to clone the repository. Exiting."
     exit 1
   fi
 fi
 
-# Navigate to the repository directory
 cd "$REPO_NAME" || { echo "Failed to navigate to the repository directory. Exiting."; exit 1; }
+
 
 # Generate random UUID
 read -p "Do you want to use a custom UUID? (Y/n): " CUSTOM_UUID
@@ -63,7 +67,7 @@ if ! sed -i "s#YOUR_DOMAIN#$DOMAIN#g" ./docker-compose.yml || ! sed -i "s#YOUR_E
 fi
 
 # Compose the Docker setup
-if ! docker-compose up -d; then
+if ! sudo docker-compose up -d; then
   echo "Failed to start Docker containers. Exiting."
   exit 1
 fi
