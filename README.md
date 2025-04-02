@@ -1,59 +1,115 @@
-# v2ray-nginx-cloudflare
-Install v2ray using docker with compatibility with Cloudflare and other CDNs easily.
--------------------------------------------
-The "v2ray-nginx-cloudflare" project details:
+# V2Ray + NGINX + Cloudflare Deployment via Docker
 
-- **Project Description**: The "v2ray-nginx-cloudflare" project encompasses an architecture that facilitates the convenient installation of V2Ray, a versatile platform for inbound and outbound network communications, using Docker. Additionally, this installation is designed to smoothly integrate and function effectively in conjunction with Cloudflare and various other Content Delivery Networks (CDNs). This combination provides an efficient and secure networking solution.
+Effortlessly deploy V2Ray with Docker, fully optimized for compatibility with **Cloudflare** and other major **CDNs**.
 
-- **Key Features**:
-  - V2Ray Integration: Seamless incorporation of the V2Ray platform, offering a robust framework for performing network functions.
-  - Docker-Based Deployment: Leveraging Docker for streamlined installation and management, ensuring ease of deployment and maintenance.
-  - Cloudflare and CDN Compatibility: Enables compatibility and optimized interaction with Cloudflare and other CDNs to deliver content and enhance network security efficiently.
+---
+
+## Project Overview
+
+The **v2ray-nginx-cloudflare** project is designed to streamline the deployment of a secure, scalable V2Ray instance using Docker containers. This architecture enables seamless integration with **Cloudflare** and a wide range of Content Delivery Networks (CDNs), offering enhanced security, obfuscation, and performance.
+
+Whether you're looking to bypass restrictions or simply set up a robust private proxy, this solution is ideal for users who prioritize reliability, compatibility, and ease of deployment.
+
+---
+
+## Key Features
+
+- **V2Ray Integration**: Full support for V2Ray’s inbound and outbound protocols, providing flexible configuration options and advanced routing capabilities.
+- **Docker-Based Deployment**: Simplifies installation, management, and scalability with Docker and Docker Compose.
+- **Cloudflare & CDN Optimization**: Native support for reverse proxy setups with Cloudflare and other CDNs, improving both security and latency.
+- **Let's Encrypt SSL Support**: Automatic HTTPS certificate issuance using Certbot.
+- **Scripted Installation**: Optional one-command setup for users who want everything configured automatically.
+
+---
+
+## System Requirements
+
+To get started, make sure you have the following:
+
+- **A VPS (Virtual Private Server)**  
+  We **highly recommend Hetzner** for performance and value — they offer:
   
-- **Project Goals**: The primary objectives of this project are to simplify the installation process of V2Ray through Docker while ensuring compatibility with Cloudflare and other CDNs. This initiative seeks to provide an accessible and efficient means to deploy V2Ray, maintaining compatibility with industry-standard CDNs for improved performance and security.
+  - 2 vCPU  
+  - 4 GB RAM  
+  - 20 TB Bandwidth  
+  - IPv4 & IPv6 support  
+  - All for only **€4.5/month**  
+  👉 Sign up and get **€20 credit** here: [https://bit.ly/ssr_vps](https://bit.ly/ssr_vps)
 
-By following the detailed instructions and utilizing the associated commands, deploying the V2Ray system within a Docker environment while harmonizing with Cloudflare and other CDNs becomes a straightforward and comprehensive process.
--------------------------------------------------
+- **Operating System** (any of the following):
+  - Ubuntu 12.04 or later
+  - Debian 7 or later
+  - CentOS 6 or later
 
-To prepare your server and set up the infrastructure, follow these steps:
+- **Root Access** to the server
 
-1. **Configure DNS**: Create an A record in your CDN to map your server's IP, ensuring the proxy option is turned off.
+---
 
-2. **Install Docker**: Set up Docker and Docker-compose on your server to facilitate containerization.
+## Manual Installation Guide
 
-3. **Clone Repository**: Use the following command to clone the "v2ray-nginx-cloudflare" repository on your server:
-    ```bash
-    git clone https://github.com/samrand96/v2ray-nginx-cloudflare.git
-    ```
+Follow these steps to set up your V2Ray server with NGINX and Cloudflare:
 
-4. **Generate UUID**: Utilize the command below to produce a UUID:
-    ```bash
-    cat /proc/sys/kernel/random/uuid
-    ```
+1. **Configure DNS**  
+   Log into your DNS provider or CDN panel (e.g., Cloudflare) and create an **A record** pointing to your server's IP. Temporarily disable the proxy/CDN feature.
 
-5. **Update Configuration**: Replace the placeholder "<UPSTREAM-UUID>" in "v2ray/config/config.json" with the generated UUID.
+2. **Install Docker**  
+   Set up Docker and Docker Compose on your server.
 
-6. **Customize Settings**: Modify "docker-compose.yml" by replacing "YOUR_DOMAIN" with your domain/subdomain and "YOUR_EMAIL" with your email for Let's Encrypt.
+3. **Clone the Repository**  
+   Run the following command on your VPS:
+   ```bash
+   git clone https://github.com/samrand96/v2ray-nginx-cloudflare.git
+   cd v2ray-nginx-cloudflare
+   ```
 
-7. **Launch Services**: Execute the following command to start the services in detached mode:
-    ```bash
-    docker-compose up -d
-    ```
+4. **Generate a UUID**  
+   This will serve as your user identity:
+   ```bash
+   cat /proc/sys/kernel/random/uuid
+   ```
 
-8. **Access Application**: Open your web browser and visit your domain/subdomain link to confirm the application is accessible.
+5. **Update V2Ray Config**  
+   Replace the placeholder `<UPSTREAM-UUID>` inside `v2ray/config/config.json` with the UUID you generated.
 
-9. **Adjust CDN Settings**: In your CDN, activate the proxy option for the record to enhance the delivery capabilities.
+6. **Configure Docker Compose**  
+   In `docker-compose.yml`, replace:
+   - `YOUR_DOMAIN` with your actual domain or subdomain
+   - `YOUR_EMAIL` with your email address (used by Let's Encrypt)
 
-10. **Generate Client Configuration**: Execute the script "./vmess.py" to create the client configuration, providing a link to access the associated resources.
+7. **Start Services**  
+   Launch everything with:
+   ```bash
+   docker-compose up -d
+   ```
 
-By following these steps and the corresponding terminal commands, you will efficiently set up the server infrastructure and associated services for your configuration.
+8. **Verify Deployment**  
+   Open your domain in a browser to confirm the service is running and serving via HTTPS.
 
------------------------------
-Are you script kiddy? no time to do so? easy, haha just run the code below and see the magic:
+9. **Enable CDN Proxy**  
+   Return to your DNS/CDN settings and activate the **proxy/CDN** feature to secure and mask your origin server.
+
+10. **Generate Client Config**  
+   Run the following script to generate a V2Ray client configuration:
+   ```bash
+   ./vmess.py
+   ```
+
+---
+
+## One-Command Quick Install
+
+No time to configure everything manually? No worries — run the following command and let the script take care of everything:
 
 ```bash
-sudo bash <(curl https://raw.githubusercontent.com/samrand96/v2ray-nginx-cloudflare/main/easy-install.sh)
+sudo bash <(curl -s https://raw.githubusercontent.com/samrand96/v2ray-nginx-cloudflare/main/easy-install.sh)
 ```
 
----------------------------
+This will automatically install Docker, configure the services, generate your UUID, obtain SSL certificates, and start the containers. Just plug in your domain when prompted, and you’re ready to go.
 
+---
+
+## Final Notes
+
+This setup provides a powerful, production-ready proxy infrastructure tailored for modern privacy needs and optimized for CDN environments. Whether you’re a seasoned sysadmin or a first-time deployer, this solution ensures a secure and efficient setup with minimal friction.
+
+For questions, improvements, or contributions, feel free to open issues or submit pull requests to the [GitHub repository](https://github.com/samrand96/v2ray-nginx-cloudflare).
