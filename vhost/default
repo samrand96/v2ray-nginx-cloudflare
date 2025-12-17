@@ -1,0 +1,78 @@
+# ============================================
+# V2Ray Multi-Protocol Nginx Configuration
+# ============================================
+# This file is included by nginx-proxy for all vhosts
+# It configures the paths for VLESS-WS, VLESS-gRPC, and VMess-WS
+# ============================================
+
+# ============================================
+# VLESS WebSocket (Port 1310)
+# ============================================
+location /vless-ws {
+    proxy_redirect off;
+    proxy_pass http://v2ray:1310;
+    proxy_http_version 1.1;
+    
+    # WebSocket upgrade headers
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    
+    # Required headers
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    
+    # Timeouts for long-running connections
+    proxy_read_timeout 86400s;
+    proxy_send_timeout 86400s;
+    
+    # Buffer settings
+    proxy_buffering off;
+}
+
+# ============================================
+# VLESS gRPC (Port 1311)
+# ============================================
+location /vless-grpc {
+    # Handle CORS preflight
+    if ($request_method = 'OPTIONS') {
+        return 200;
+    }
+    
+    # gRPC proxy
+    grpc_pass grpc://v2ray:1311;
+    grpc_read_timeout 86400s;
+    grpc_send_timeout 86400s;
+    
+    # Required headers
+    grpc_set_header Host $host;
+    grpc_set_header X-Real-IP $remote_addr;
+    grpc_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+}
+
+# ============================================
+# VMess WebSocket (Port 1312)
+# ============================================
+location /vmess-ws {
+    proxy_redirect off;
+    proxy_pass http://v2ray:1312;
+    proxy_http_version 1.1;
+    
+    # WebSocket upgrade headers
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    
+    # Required headers
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    
+    # Timeouts for long-running connections
+    proxy_read_timeout 86400s;
+    proxy_send_timeout 86400s;
+    
+    # Buffer settings
+    proxy_buffering off;
+}

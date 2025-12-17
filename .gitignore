@@ -1,0 +1,69 @@
+# Environment files
+.env
+.env.local
+.env.production
+.env.staging
+
+# Log files
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# SSL Certificates (if any)
+*.pem
+*.crt
+*.key
+certs/
+
+# Backup files
+*.backup
+*.bak
+*.tmp
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node modules (if any)
+node_modules/
+
+# Python (if any)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+
+# V2Ray generated configs
+v2ray/config/config.json
+!v2ray/config/config.template.json
+
+# Generated client configs
+client-configs/
+*.vmess
+*.vless
+
+# Temporary files
+temp/
+tmp/
+.DS_Store

@@ -1,0 +1,110 @@
+{
+  "log": {
+    "access": "/var/log/v2ray/access.log",
+    "error": "/var/log/v2ray/error.log",
+    "loglevel": "info"
+  },
+  "inbounds": [
+    {
+      "listen": "0.0.0.0",
+      "port": 1310,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "${V2RAY_UUID}",
+            "flow": ""
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {
+          "path": "/vless-ws"
+        }
+      },
+      "tag": "vless-ws"
+    },
+    {
+      "listen": "0.0.0.0",
+      "port": 1311,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "${V2RAY_UUID}",
+            "flow": ""
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "grpc",
+        "security": "none",
+        "grpcSettings": {
+          "serviceName": "vless-grpc"
+        }
+      },
+      "tag": "vless-grpc"
+    },
+    {
+      "listen": "0.0.0.0",
+      "port": 1312,
+      "protocol": "vmess",
+      "settings": {
+        "clients": [
+          {
+            "id": "${V2RAY_UUID}",
+            "alterId": 0,
+            "security": "auto"
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {
+          "path": "/vmess-ws"
+        }
+      },
+      "tag": "vmess-ws"
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "tag": "freedom",
+      "settings": {}
+    },
+    {
+      "protocol": "blackhole",
+      "tag": "blackhole",
+      "settings": {}
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {
+        "type": "field",
+        "ip": ["geoip:private"],
+        "outboundTag": "freedom"
+      },
+      {
+        "type": "field",
+        "protocol": ["bittorrent"],
+        "outboundTag": "blackhole"
+      }
+    ]
+  },
+  "dns": {
+    "servers": [
+      "1.1.1.1",
+      "1.0.0.1",
+      "8.8.8.8",
+      "localhost"
+    ]
+  }
+}

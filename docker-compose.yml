@@ -1,4 +1,3 @@
-version: '3'
 services:
 
   nginx:
@@ -14,6 +13,7 @@ services:
       - './certs:/etc/nginx/certs'
       - './vhost:/etc/nginx/vhost.d'
       - './html:/usr/share/nginx/html'
+      - './logs/nginx:/var/log/nginx'
       
   dockergen:
     image: 'jwilder/docker-gen:0.9'
@@ -29,6 +29,7 @@ services:
       - './certs:/etc/nginx/certs'
       - './vhost:/etc/nginx/vhost.d'
       - './html:/usr/share/nginx/html'
+      - './logs/docker-gen:/var/log/docker-gen'
       
   nginx-proxy-acme:
     restart: always
@@ -41,6 +42,7 @@ services:
       - './certs:/etc/nginx/certs'
       - './vhost:/etc/nginx/vhost.d'
       - './html:/usr/share/nginx/html'
+      - './logs/acme:/var/log/acme'
     environment:
       - DEFAULT_EMAIL=YOUR_EMAIL
       - NGINX_PROXY_CONTAINER=nginx
@@ -51,9 +53,21 @@ services:
     container_name: v2ray
     restart: always
     environment:
-      - v2ray.vmess.aead.forced=false
-      - VIRTUAL_HOST=YOUR_DOMAIN
-      - LETSENCRYPT_HOST=YOUR_DOMAIN
+      - VIRTUAL_HOST=${DOMAIN}
       - VIRTUAL_PORT=1310
-    volumes:
-      - './v2ray/config:/etc/v2ray/'
+      - LETSENCRYPT_HOST=${DOMAIN}
+      - LETSENCRYPT_EMAIL=${EMAIL}
+      - v2ray.vmess.aead.forced=false
+    networks:
+      - default
+
+volumes:
+  certs:
+  html:
+  logs:
+  configs:
+  acme:
+  vhost:
+  nginx:
+  docker-gen:
+  v2ray:
