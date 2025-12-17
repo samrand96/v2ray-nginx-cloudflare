@@ -42,19 +42,19 @@ The modular setup supports **three Cloudflare-compatible protocols**:
 
 ### **🥇 VLESS + WebSocket + TLS (Best for CDN)**
 - **Port:** 1310
-- **Path:** `/vless-ws` 
+- **Path:** `/` 
 - **Performance:** ⭐⭐⭐⭐⭐
 - **CDN Compatible:** ✅ Excellent
 
 ### **🥈 VLESS + gRPC + TLS**
 - **Port:** 1311
-- **Service:** `vless-grpc`
+- **Service:** `grpc`
 - **Performance:** ⭐⭐⭐⭐
 - **CDN Compatible:** ✅ Good
 
 ### **🥉 VMess + WebSocket + TLS**
 - **Port:** 1312
-- **Path:** `/vmess-ws`
+- **Path:** `/ws`
 - **Performance:** ⭐⭐⭐
 - **CDN Compatible:** ✅ Good (Legacy)
 
@@ -125,7 +125,7 @@ vless://your-uuid@your-domain.com:443?type=ws&security=tls&path=%2Fvless-ws&host
 
 #### **VLESS gRPC:**
 ```
-vless://your-uuid@your-domain.com:443?type=grpc&security=tls&serviceName=vless-grpc&host=your-domain.com#VLESS-gRPC
+vless://your-uuid@your-domain.com:443?type=grpc&security=tls&serviceName=grpc&host=your-domain.com#VLESS-gRPC
 ```
 
 #### **VMess WebSocket:**
@@ -226,9 +226,9 @@ VLESS_GRPC_PORT=1311    # VLESS gRPC
 VMESS_WS_PORT=1312      # VMess WebSocket
 
 # Protocol paths
-VLESS_WS_PATH=/vless-ws
-VLESS_GRPC_SERVICE=vless-grpc
-VMESS_WS_PATH=/vmess-ws
+VLESS_WS_PATH=/
+VLESS_GRPC_SERVICE=grpc
+VMESS_WS_PATH=/ws
 ```
 
 After editing `.env`, regenerate V2Ray config:
@@ -379,7 +379,7 @@ docker compose -f docker-compose.modular.yml exec v2ray cat /etc/v2ray/config.js
 - **Port:** 443
 - **UUID:** your-generated-uuid
 - **Network:** ws
-- **Path:** /vless-ws
+- **Path:** /
 - **TLS:** true
 
 #### **V2Ray Client JSON:**
@@ -401,7 +401,7 @@ docker compose -f docker-compose.modular.yml exec v2ray cat /etc/v2ray/config.js
       "network": "ws",
       "security": "tls",
       "wsSettings": {
-        "path": "/vless-ws",
+        "path": "/",
         "headers": {
           "Host": "your-domain.com"
         }
@@ -425,7 +425,7 @@ proxies:
     network: ws
     tls: true
     ws-opts:
-      path: /vless-ws
+      path: /
       headers:
         Host: your-domain.com
 ```
@@ -437,7 +437,7 @@ proxies:
 - **Port:** 443
 - **UUID:** your-generated-uuid
 - **Network:** grpc
-- **Service:** vless-grpc
+- **Service:** grpc
 - **TLS:** true
 
 #### **V2Ray Client JSON:**
@@ -459,7 +459,7 @@ proxies:
       "network": "grpc",
       "security": "tls",
       "grpcSettings": {
-        "serviceName": "vless-grpc"
+        "serviceName": "grpc"
       },
       "tlsSettings": {
         "serverName": "your-domain.com"
@@ -477,7 +477,7 @@ proxies:
 - **UUID:** your-generated-uuid
 - **AlterID:** 0
 - **Network:** ws
-- **Path:** /vmess-ws
+- **Path:** /ws
 - **TLS:** true
 
 #### **V2Ray Client JSON:**
@@ -500,7 +500,7 @@ proxies:
       "network": "ws",
       "security": "tls",
       "wsSettings": {
-        "path": "/vmess-ws",
+        "path": "/ws",
         "headers": {
           "Host": "your-domain.com"
         }

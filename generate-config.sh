@@ -44,9 +44,9 @@ fi
 
 log_info "Generating V2Ray configuration..."
 log_info "  UUID: ${V2RAY_UUID:0:8}..."
-log_info "  VLESS WS: Port 1310, Path /vless-ws"
-log_info "  VLESS gRPC: Port 1311, Service vless-grpc"
-log_info "  VMess WS: Port 1312, Path /vmess-ws"
+log_info "  VLESS WS: Port 1310, Path /"
+log_info "  VLESS gRPC: Port 1311, Service grpc"
+log_info "  VMess WS: Port 1312, Path /ws"
 
 # Ensure directories exist
 mkdir -p v2ray/config

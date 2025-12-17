@@ -284,9 +284,9 @@ VLESS_GRPC_PORT=1311
 VMESS_WS_PORT=1312
 
 # Protocol Paths
-VLESS_WS_PATH=/vless-ws
-VLESS_GRPC_SERVICE=vless-grpc
-VMESS_WS_PATH=/vmess-ws
+VLESS_WS_PATH=/
+VLESS_GRPC_SERVICE=grpc
+VMESS_WS_PATH=/ws
 
 # Protocol Enablement
 VLESS_WS_ENABLED=true
@@ -357,11 +357,11 @@ generate_v2ray_config() {
     # Set defaults if not in .env
     export V2RAY_UUID="${uuid}"
     export VLESS_WS_PORT="${VLESS_WS_PORT:-1310}"
-    export VLESS_WS_PATH="${VLESS_WS_PATH:-/vless-ws}"
+    export VLESS_WS_PATH="${VLESS_WS_PATH:-/}"
     export VLESS_GRPC_PORT="${VLESS_GRPC_PORT:-1311}"
-    export VLESS_GRPC_SERVICE="${VLESS_GRPC_SERVICE:-vless-grpc}"
+    export VLESS_GRPC_SERVICE="${VLESS_GRPC_SERVICE:-grpc}"
     export VMESS_WS_PORT="${VMESS_WS_PORT:-1312}"
-    export VMESS_WS_PATH="${VMESS_WS_PATH:-/vmess-ws}"
+    export VMESS_WS_PATH="${VMESS_WS_PATH:-/ws}"
     
     # Use template if available
     if [ -f "./v2ray/config/config.template.json" ]; then
@@ -589,17 +589,17 @@ if [ "$SETUP_CHOICE" = "2" ]; then
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "📱 VLESS WebSocket (Recommended):"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "vless://${UUID}@${CF_IP}:443?type=ws&security=tls&path=%2Fvless-ws&host=${DOMAIN}&sni=${DOMAIN}#${SERVER_INFO// /-}-VLESS-WS"
+    echo "vless://${UUID}@${CF_IP}:443?type=ws&security=tls&path=%2F&host=${DOMAIN}&sni=${DOMAIN}#${SERVER_INFO// /-}-VLESS-WS"
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "📱 VLESS gRPC:"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "vless://${UUID}@${CF_IP}:443?type=grpc&security=tls&serviceName=vless-grpc&host=${DOMAIN}&sni=${DOMAIN}#${SERVER_INFO// /-}-VLESS-gRPC"
+    echo "vless://${UUID}@${CF_IP}:443?type=grpc&security=tls&serviceName=grpc&host=${DOMAIN}&sni=${DOMAIN}#${SERVER_INFO// /-}-VLESS-gRPC"
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "📱 VMess WebSocket:"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    VMESS_CONFIG=$(echo -n "{\"v\":\"2\",\"ps\":\"${SERVER_INFO// /-}-VMess-WS\",\"add\":\"${CF_IP}\",\"port\":\"443\",\"type\":\"none\",\"id\":\"${UUID}\",\"aid\":\"0\",\"net\":\"ws\",\"path\":\"/vmess-ws\",\"host\":\"${DOMAIN}\",\"tls\":\"tls\",\"sni\":\"${DOMAIN}\"}" | base64 -w 0 2>/dev/null || base64)
+    VMESS_CONFIG=$(echo -n "{\"v\":\"2\",\"ps\":\"${SERVER_INFO// /-}-VMess-WS\",\"add\":\"${CF_IP}\",\"port\":\"443\",\"type\":\"none\",\"id\":\"${UUID}\",\"aid\":\"0\",\"net\":\"ws\",\"path\":\"/ws\",\"host\":\"${DOMAIN}\",\"tls\":\"tls\",\"sni\":\"${DOMAIN}\"}" | base64 -w 0 2>/dev/null || base64)
     echo "vmess://${VMESS_CONFIG}"
     echo ""
     echo "=============================================="

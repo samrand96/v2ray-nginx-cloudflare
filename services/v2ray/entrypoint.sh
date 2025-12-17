@@ -17,11 +17,11 @@ fi
 # Set default values if not provided
 export V2RAY_UUID=${V2RAY_UUID:-"$(cat /proc/sys/kernel/random/uuid)"}
 export VLESS_WS_PORT=${VLESS_WS_PORT:-1310}
-export VLESS_WS_PATH=${VLESS_WS_PATH:-"/vless-ws"}
+export VLESS_WS_PATH=${VLESS_WS_PATH:-"/"}
 export VLESS_GRPC_PORT=${VLESS_GRPC_PORT:-1311}
-export VLESS_GRPC_SERVICE=${VLESS_GRPC_SERVICE:-"vless-grpc"}
+export VLESS_GRPC_SERVICE=${VLESS_GRPC_SERVICE:-"grpc"}
 export VMESS_WS_PORT=${VMESS_WS_PORT:-1312}
-export VMESS_WS_PATH=${VMESS_WS_PATH:-"/vmess-ws"}
+export VMESS_WS_PATH=${VMESS_WS_PATH:-"/ws"}
 
 echo "📋 Configuration Summary:"
 echo "   UUID: $V2RAY_UUID"
