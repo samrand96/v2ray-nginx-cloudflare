@@ -88,4 +88,4 @@ if isSSLEnable == 'yes':
 print('---------\n')
 print('\nDone!')
 print('- Run docker compose up -d for bringing up services')
-print('- Run ./vmess.py to get your VLESS/VMess links to share and import in clients\n')
+print('- Run ./vmess.py to get your VLESS/VMess/Reality links to share and import in clients\n')

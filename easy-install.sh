@@ -497,7 +497,7 @@ fi
 echo ""
 echo "🎯 Choose setup type:"
 echo "1) Original setup (VLESS only)"
-echo "2) Modular setup (Multi-protocol: VLESS+VMess) [Recommended]"
+echo "2) Modular setup (Multi-protocol: VLESS+VMess+Reality) [Recommended]"
 read -p "Enter choice (1 or 2) [2]: " SETUP_CHOICE
 SETUP_CHOICE=${SETUP_CHOICE:-2}
 
