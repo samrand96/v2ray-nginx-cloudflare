@@ -6,39 +6,60 @@
   },
   "inbounds": [
     {
-      "listen": "::",
+      "listen": "0.0.0.0",
       "port": 1310,
-      "protocol": "vmess",
+      "protocol": "vless",
       "settings": {
         "clients": [
           {
             "id": "<UPSTREAM-UUID>",
-            "alterId": 0,
-            "security": "auto"
+            "flow": ""
           }
-        ]
+        ],
+        "decryption": "none"
       },
       "streamSettings": {
         "network": "ws",
+        "security": "none",
         "wsSettings": {
           "path": "/"
         }
       },
-      "mux": {
-        "enabled": true
-      }
+      "tag": "vless-ws"
     }
   ],
   "outbounds": [
     {
       "protocol": "freedom",
-      "tag": "freedom"
+      "tag": "freedom",
+      "settings": {}
+    },
+    {
+      "protocol": "blackhole",
+      "tag": "blackhole",
+      "settings": {}
     }
   ],
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": [
+      {
+        "type": "field",
+        "ip": ["geoip:private"],
+        "outboundTag": "freedom"
+      },
+      {
+        "type": "field",
+        "protocol": ["bittorrent"],
+        "outboundTag": "blackhole"
+      }
+    ]
+  },
   "dns": {
     "servers": [
       "1.1.1.1",
       "1.0.0.1",
+      "8.8.8.8",
       "localhost"
     ]
   }

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ============================================
-# V2Ray Configuration Generator
+# Xray Configuration Generator
 # ============================================
 # Generates v2ray/config/config.json from .env file
 # Run this script after updating .env to apply changes
@@ -42,11 +42,12 @@ if [ -z "$V2RAY_UUID" ] || [ "$V2RAY_UUID" = "CHANGE-THIS-UUID" ]; then
     exit 1
 fi
 
-log_info "Generating V2Ray configuration..."
+log_info "Generating Xray configuration..."
 log_info "  UUID: ${V2RAY_UUID:0:8}..."
 log_info "  VLESS WS: Port 1310, Path /"
 log_info "  VLESS gRPC: Port 1311, Service grpc"
 log_info "  VMess WS: Port 1312, Path /ws"
+log_info "  VLESS Reality: Port 1313, Dest ${REALITY_DEST:-www.microsoft.com:443}"
 
 # Ensure directories exist
 mkdir -p v2ray/config
@@ -64,10 +65,21 @@ fi
 if command -v envsubst &>/dev/null; then
     envsubst < "$TEMPLATE_FILE" > "$OUTPUT_FILE"
 else
-    # Fallback: use sed
+    # Fallback: use sed for all template variables
     log_info "Using sed for variable substitution..."
     cp "$TEMPLATE_FILE" "$OUTPUT_FILE"
     sed -i "s|\${V2RAY_UUID}|${V2RAY_UUID}|g" "$OUTPUT_FILE"
+    sed -i "s|\${VLESS_WS_PORT}|${VLESS_WS_PORT:-1310}|g" "$OUTPUT_FILE"
+    sed -i "s|\${VLESS_WS_PATH}|${VLESS_WS_PATH:-/}|g" "$OUTPUT_FILE"
+    sed -i "s|\${VLESS_GRPC_PORT}|${VLESS_GRPC_PORT:-1311}|g" "$OUTPUT_FILE"
+    sed -i "s|\${VLESS_GRPC_SERVICE}|${VLESS_GRPC_SERVICE:-grpc}|g" "$OUTPUT_FILE"
+    sed -i "s|\${VMESS_WS_PORT}|${VMESS_WS_PORT:-1312}|g" "$OUTPUT_FILE"
+    sed -i "s|\${VMESS_WS_PATH}|${VMESS_WS_PATH:-/ws}|g" "$OUTPUT_FILE"
+    sed -i "s|\${VLESS_REALITY_PORT}|${VLESS_REALITY_PORT:-1313}|g" "$OUTPUT_FILE"
+    sed -i "s|\${REALITY_DEST}|${REALITY_DEST:-www.microsoft.com:443}|g" "$OUTPUT_FILE"
+    sed -i "s|\${REALITY_SERVER_NAME}|${REALITY_SERVER_NAME:-www.microsoft.com}|g" "$OUTPUT_FILE"
+    sed -i "s|\${REALITY_PRIVATE_KEY}|${REALITY_PRIVATE_KEY}|g" "$OUTPUT_FILE"
+    sed -i "s|\${REALITY_SHORT_ID}|${REALITY_SHORT_ID:-abcd1234}|g" "$OUTPUT_FILE"
 fi
 
 # Validate JSON (if jq is available)

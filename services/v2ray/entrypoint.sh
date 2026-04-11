@@ -1,12 +1,13 @@
 #!/bin/sh
 
-# V2Ray Multi-Protocol Configuration Generator
-# This script generates the V2Ray config.json from template based on environment variables
+# Xray Multi-Protocol Configuration Generator
+# This script generates the Xray config.json from template based on environment variables
+# Supports: VLESS-WS, VLESS-gRPC, VMess-WS, VLESS-XTLS-Reality
 
-CONFIG_TEMPLATE="/etc/v2ray/config.template.json"
-CONFIG_OUTPUT="/etc/v2ray/config.json"
+CONFIG_TEMPLATE="/etc/xray/config.template.json"
+CONFIG_OUTPUT="/etc/xray/config.json"
 
-echo "🚀 Generating V2Ray configuration..."
+echo "🚀 Generating Xray configuration..."
 
 # Check if template exists
 if [ ! -f "$CONFIG_TEMPLATE" ]; then
@@ -22,26 +23,32 @@ export VLESS_GRPC_PORT=${VLESS_GRPC_PORT:-1311}
 export VLESS_GRPC_SERVICE=${VLESS_GRPC_SERVICE:-"grpc"}
 export VMESS_WS_PORT=${VMESS_WS_PORT:-1312}
 export VMESS_WS_PATH=${VMESS_WS_PATH:-"/ws"}
+export VLESS_REALITY_PORT=${VLESS_REALITY_PORT:-1313}
+export REALITY_DEST=${REALITY_DEST:-"www.microsoft.com:443"}
+export REALITY_SERVER_NAME=${REALITY_SERVER_NAME:-"www.microsoft.com"}
+export REALITY_PRIVATE_KEY=${REALITY_PRIVATE_KEY:-""}
+export REALITY_SHORT_ID=${REALITY_SHORT_ID:-"abcd1234"}
 
 echo "📋 Configuration Summary:"
 echo "   UUID: $V2RAY_UUID"
 echo "   VLESS WebSocket: Port $VLESS_WS_PORT, Path: $VLESS_WS_PATH"
 echo "   VLESS gRPC: Port $VLESS_GRPC_PORT, Service: $VLESS_GRPC_SERVICE"
 echo "   VMess WebSocket: Port $VMESS_WS_PORT, Path: $VMESS_WS_PATH"
+echo "   VLESS Reality: Port $VLESS_REALITY_PORT, Dest: $REALITY_DEST"
 
 # Generate config by replacing environment variables
 envsubst < "$CONFIG_TEMPLATE" > "$CONFIG_OUTPUT"
 
 # Validate generated config
-if v2ray -test -config="$CONFIG_OUTPUT" > /dev/null 2>&1; then
+if xray run -test -c "$CONFIG_OUTPUT" > /dev/null 2>&1; then
     echo "✅ Configuration generated successfully!"
     echo "📁 Config saved to: $CONFIG_OUTPUT"
 else
     echo "❌ Invalid configuration generated!"
-    v2ray -test -config="$CONFIG_OUTPUT"
+    xray run -test -c "$CONFIG_OUTPUT"
     exit 1
 fi
 
-# Start V2Ray
-echo "🌟 Starting V2Ray with multi-protocol support..."
-exec v2ray -config="$CONFIG_OUTPUT"
+# Start Xray
+echo "🌟 Starting Xray with multi-protocol support..."
+exec xray run -c "$CONFIG_OUTPUT"

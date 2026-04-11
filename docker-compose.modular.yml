@@ -12,11 +12,7 @@ networks:
 
 # Shared volumes
 volumes:
-  nginx-certs:
-    driver: local
   nginx-html:
-    driver: local
-  acme-data:
     driver: local
 
 services:
@@ -33,7 +29,7 @@ services:
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
       - ./configs:/etc/nginx/conf.d
-      - nginx-certs:/etc/nginx/certs
+      - ./certs:/etc/nginx/certs
       - ./vhost:/etc/nginx/vhost.d
       - nginx-html:/usr/share/nginx/html
       - ./logs/nginx:/var/log/nginx
@@ -62,7 +58,7 @@ services:
       - /var/run/docker.sock:/tmp/docker.sock:ro
       - ./configs/nginx.tmpl:/etc/docker-gen/templates/nginx.tmpl
       - ./configs:/etc/nginx/conf.d
-      - nginx-certs:/etc/nginx/certs
+      - ./certs:/etc/nginx/certs
       - ./vhost:/etc/nginx/vhost.d
       - nginx-html:/usr/share/nginx/html
       - ./logs/docker-gen:/var/log/docker-gen
@@ -82,9 +78,9 @@ services:
     restart: ${RESTART_POLICY:-always}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - acme-data:/etc/acme.sh
+      - ./acme:/etc/acme.sh
       - ./configs:/etc/nginx/conf.d
-      - nginx-certs:/etc/nginx/certs
+      - ./certs:/etc/nginx/certs
       - ./vhost:/etc/nginx/vhost.d
       - nginx-html:/usr/share/nginx/html
       - ./logs/acme:/var/log/acme
@@ -102,14 +98,13 @@ services:
 
   # ============================================
   # V2Ray Service - Multi-Protocol Proxy Server
+  # Uses Xray-core for XTLS-Reality support
   # ============================================
   v2ray:
-    image: v2fly/v2fly-core:${V2RAY_VERSION:-v4.45.2}
+    image: ghcr.io/xtls/xray-core:${XRAY_VERSION:-latest}
     container_name: ${V2RAY_CONTAINER_NAME:-v2ray}
     restart: ${RESTART_POLICY:-always}
     environment:
-      # V2Ray AEAD setting
-      - v2ray.vmess.aead.forced=${V2RAY_VMESS_AEAD_FORCED:-false}
       # nginx-proxy configuration - VIRTUAL_HOST is the key for routing
       - VIRTUAL_HOST=${DOMAIN:-your-domain.com}
       - LETSENCRYPT_HOST=${DOMAIN:-your-domain.com}
@@ -117,8 +112,12 @@ services:
       # Use VLESS WS port as the default VIRTUAL_PORT
       - VIRTUAL_PORT=${VLESS_WS_PORT:-1310}
     volumes:
-      - ./v2ray/config:/etc/v2ray:ro
+      - ./v2ray/config:/etc/xray:ro
       - ./logs/v2ray:/var/log/v2ray
+    ports:
+      # Reality port exposed directly (bypasses nginx/CDN)
+      # Note: changing VLESS_REALITY_PORT also requires regenerating xray config
+      - "${REALITY_PORT:-2083}:${VLESS_REALITY_PORT:-1313}"
     networks:
       - v2ray-network
     depends_on:

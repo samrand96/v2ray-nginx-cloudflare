@@ -70,6 +70,31 @@
         }
       },
       "tag": "vmess-ws"
+    },
+    {
+      "listen": "0.0.0.0",
+      "port": 1313,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "${V2RAY_UUID}",
+            "flow": "xtls-rprx-vision"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "dest": "${REALITY_DEST}",
+          "serverNames": ["${REALITY_SERVER_NAME}"],
+          "privateKey": "${REALITY_PRIVATE_KEY}",
+          "shortIds": ["${REALITY_SHORT_ID}"]
+        }
+      },
+      "tag": "vless-reality"
     }
   ],
   "outbounds": [
@@ -85,7 +110,7 @@
     }
   ],
   "routing": {
-    "domainStrategy": "IPIfNonMatch",
+    "domainStrategy": "AsIs",
     "rules": [
       {
         "type": "field",
