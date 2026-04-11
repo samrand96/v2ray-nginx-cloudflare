@@ -4,8 +4,8 @@ services:
     image: nginx:1.22
     container_name: nginx
     ports:
-      - '80:80'
-      - '443:443'
+      - '${HTTP_PORT:-80}:80'
+      - '${HTTPS_PORT:-443}:443'
     restart: always
     volumes:
       - '/var/run/docker.sock:/tmp/docker.sock:ro'
@@ -49,12 +49,15 @@ services:
       - NGINX_DOCKER_GEN_CONTAINER=dockergen
 
   v2ray:
-    image: v2fly/v2fly-core:v4.45.2
+    image: ghcr.io/xtls/xray-core:${XRAY_VERSION:-latest}
     container_name: v2ray
     restart: always
     volumes:
-      - './v2ray/config:/etc/v2ray:ro'
+      - './v2ray/config:/etc/xray:ro'
       - './logs/v2ray:/var/log/v2ray'
+    ports:
+      # Reality port exposed directly (bypasses nginx/CDN)
+      - '${REALITY_PORT:-2083}:${VLESS_REALITY_PORT:-1313}'
     environment:
       - VIRTUAL_HOST=${DOMAIN}
       - VIRTUAL_PORT=1310

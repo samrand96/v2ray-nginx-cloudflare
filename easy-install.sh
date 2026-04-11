@@ -257,6 +257,13 @@ create_env_file() {
     local domain="$1"
     local email="$2"
     local uuid="$3"
+    local https_port="$4"
+    local reality_port="$5"
+    local reality_private_key="$6"
+    local reality_public_key="$7"
+    local reality_short_id="$8"
+    local reality_dest="$9"
+    local reality_server_name="${10}"
     
     log_info "Creating centralized .env configuration file..."
     
@@ -266,6 +273,7 @@ create_env_file() {
 # ============================================
 # Generated on $(date)
 # All services read from this single file
+# Uses Xray-core for XTLS-Reality support
 # ============================================
 
 # Domain Configuration
@@ -274,14 +282,15 @@ VIRTUAL_HOST=${domain}
 LETSENCRYPT_HOST=${domain}
 LETSENCRYPT_EMAIL=${email}
 
-# V2Ray Configuration
+# Xray Configuration
 V2RAY_UUID=${uuid}
-V2RAY_VERSION=v4.45.2
+XRAY_VERSION=latest
 
-# Protocol Ports
+# Protocol Ports (internal)
 VLESS_WS_PORT=1310
 VLESS_GRPC_PORT=1311
 VMESS_WS_PORT=1312
+VLESS_REALITY_PORT=1313
 
 # Protocol Paths
 VLESS_WS_PATH=/
@@ -292,6 +301,16 @@ VMESS_WS_PATH=/ws
 VLESS_WS_ENABLED=true
 VLESS_GRPC_ENABLED=true
 VMESS_WS_ENABLED=true
+VLESS_REALITY_ENABLED=true
+
+# VLESS + XTLS-Reality Configuration
+# Reality connects DIRECTLY to server (bypasses CDN)
+REALITY_PORT=${reality_port}
+REALITY_DEST=${reality_dest}
+REALITY_SERVER_NAME=${reality_server_name}
+REALITY_PRIVATE_KEY=${reality_private_key}
+REALITY_PUBLIC_KEY=${reality_public_key}
+REALITY_SHORT_ID=${reality_short_id}
 
 # Container Names
 NGINX_CONTAINER_NAME=nginx
@@ -314,8 +333,10 @@ V2RAY_SECURITY=auto
 V2RAY_ALTERID=0
 
 # Network Configuration
+# HTTP_PORT must remain 80 for ACME (Let's Encrypt) HTTP-01 challenge
 HTTP_PORT=80
-HTTPS_PORT=443
+# HTTPS_PORT can be customized without affecting ACME
+HTTPS_PORT=${https_port}
 
 # Nginx Proxy Settings
 NGINX_PROXY_CONTAINER=nginx
@@ -345,7 +366,7 @@ EOF
 generate_v2ray_config() {
     local uuid="$1"
     
-    log_info "Generating V2Ray configuration..."
+    log_info "Generating Xray configuration..."
     
     # Source .env file to get variables
     if [ -f ".env" ]; then
@@ -362,12 +383,17 @@ generate_v2ray_config() {
     export VLESS_GRPC_SERVICE="${VLESS_GRPC_SERVICE:-grpc}"
     export VMESS_WS_PORT="${VMESS_WS_PORT:-1312}"
     export VMESS_WS_PATH="${VMESS_WS_PATH:-/ws}"
+    export VLESS_REALITY_PORT="${VLESS_REALITY_PORT:-1313}"
+    export REALITY_DEST="${REALITY_DEST:-www.microsoft.com:443}"
+    export REALITY_SERVER_NAME="${REALITY_SERVER_NAME:-www.microsoft.com}"
+    export REALITY_PRIVATE_KEY="${REALITY_PRIVATE_KEY}"
+    export REALITY_SHORT_ID="${REALITY_SHORT_ID:-abcd1234}"
     
     # Use template if available
     if [ -f "./v2ray/config/config.template.json" ]; then
         if command -v envsubst &>/dev/null; then
             envsubst < "./v2ray/config/config.template.json" > "./v2ray/config/config.json"
-            log_success "V2Ray configuration generated from template"
+            log_success "Xray configuration generated from template"
         else
             log_warning "envsubst not found, using sed fallback"
             cp "./v2ray/config/config.template.json" "./v2ray/config/config.json"
@@ -378,10 +404,15 @@ generate_v2ray_config() {
             sed -i "s|\${VLESS_GRPC_SERVICE}|${VLESS_GRPC_SERVICE}|g" "./v2ray/config/config.json"
             sed -i "s|\${VMESS_WS_PORT}|${VMESS_WS_PORT}|g" "./v2ray/config/config.json"
             sed -i "s|\${VMESS_WS_PATH}|${VMESS_WS_PATH}|g" "./v2ray/config/config.json"
-            log_success "V2Ray configuration generated using sed"
+            sed -i "s|\${VLESS_REALITY_PORT}|${VLESS_REALITY_PORT}|g" "./v2ray/config/config.json"
+            sed -i "s|\${REALITY_DEST}|${REALITY_DEST}|g" "./v2ray/config/config.json"
+            sed -i "s|\${REALITY_SERVER_NAME}|${REALITY_SERVER_NAME}|g" "./v2ray/config/config.json"
+            sed -i "s|\${REALITY_PRIVATE_KEY}|${REALITY_PRIVATE_KEY}|g" "./v2ray/config/config.json"
+            sed -i "s|\${REALITY_SHORT_ID}|${REALITY_SHORT_ID}|g" "./v2ray/config/config.json"
+            log_success "Xray configuration generated using sed"
         fi
     else
-        log_error "V2Ray config template not found!"
+        log_error "Xray config template not found!"
         exit 1
     fi
 }
@@ -510,8 +541,69 @@ done
 log_success "Domain: $DOMAIN"
 log_success "Email: $EMAIL"
 
+# Port customization
+echo ""
+echo "🔌 Port Configuration:"
+echo "   HTTP port 80 is REQUIRED for ACME/Let's Encrypt and cannot be changed."
+read -p "Enter HTTPS port [443]: " HTTPS_PORT
+HTTPS_PORT=${HTTPS_PORT:-443}
+if [[ ! "$HTTPS_PORT" =~ ^[0-9]+$ ]] || [ "$HTTPS_PORT" -lt 1 ] || [ "$HTTPS_PORT" -gt 65535 ]; then
+    log_warning "Invalid port, using default 443"
+    HTTPS_PORT=443
+fi
+log_success "HTTPS Port: $HTTPS_PORT"
+
+# Reality setup
+echo ""
+echo "🔐 VLESS + XTLS-Reality Setup:"
+echo "   Reality provides direct connection without CDN (anti-censorship)"
+log_info "Generating Reality x25519 keypair..."
+
+# Generate x25519 keypair using xray
+REALITY_KEYS=""
+if command -v docker &>/dev/null; then
+    REALITY_KEYS=$(docker run --rm ghcr.io/xtls/xray-core x25519 2>/dev/null) || true
+fi
+
+if [ -n "$REALITY_KEYS" ]; then
+    REALITY_PRIVATE_KEY=$(echo "$REALITY_KEYS" | grep "Private key:" | awk '{print $3}')
+    REALITY_PUBLIC_KEY=$(echo "$REALITY_KEYS" | grep "Public key:" | awk '{print $3}')
+    log_success "Reality keypair generated"
+else
+    log_warning "Could not auto-generate Reality keys. You can set them later in .env"
+    REALITY_PRIVATE_KEY="CHANGE-THIS-PRIVATE-KEY"
+    REALITY_PUBLIC_KEY="CHANGE-THIS-PUBLIC-KEY"
+fi
+
+read -p "Enter Reality port [2083]: " REALITY_PORT
+REALITY_PORT=${REALITY_PORT:-2083}
+if [[ ! "$REALITY_PORT" =~ ^[0-9]+$ ]] || [ "$REALITY_PORT" -lt 1 ] || [ "$REALITY_PORT" -gt 65535 ]; then
+    log_warning "Invalid port, using default 2083"
+    REALITY_PORT=2083
+fi
+# Validate Reality port doesn't conflict with HTTP/HTTPS
+if [ "$REALITY_PORT" = "80" ]; then
+    log_warning "Port 80 is reserved for ACME. Using 2083 instead."
+    REALITY_PORT=2083
+fi
+if [ "$REALITY_PORT" = "$HTTPS_PORT" ]; then
+    log_warning "Reality port conflicts with HTTPS port. Using 2083 instead."
+    REALITY_PORT=2083
+fi
+
+read -p "Enter Reality destination domain [www.microsoft.com:443]: " REALITY_DEST
+REALITY_DEST=${REALITY_DEST:-www.microsoft.com:443}
+REALITY_SERVER_NAME=$(echo "$REALITY_DEST" | cut -d: -f1)
+
+REALITY_SHORT_ID=$(head -c 4 /dev/urandom 2>/dev/null | od -A n -t x1 | tr -d ' \n' || echo "abcd1234")
+
+log_success "Reality Port: $REALITY_PORT"
+log_success "Reality Dest: $REALITY_DEST"
+
 # Create centralized .env file
-create_env_file "$DOMAIN" "$EMAIL" "$UUID"
+create_env_file "$DOMAIN" "$EMAIL" "$UUID" "$HTTPS_PORT" "$REALITY_PORT" \
+    "$REALITY_PRIVATE_KEY" "$REALITY_PUBLIC_KEY" "$REALITY_SHORT_ID" \
+    "$REALITY_DEST" "$REALITY_SERVER_NAME"
 
 # Generate V2Ray config
 if [ "$SETUP_CHOICE" = "2" ]; then
@@ -578,35 +670,47 @@ if [ "$SETUP_CHOICE" = "2" ]; then
     log_info "Getting server location and Cloudflare IP..."
     SERVER_INFO=$(get_server_info)
     CF_IP=$(get_cloudflare_ip)
+    # Get server's public IP for Reality (direct connection)
+    SERVER_IP=$(timeout 10 curl -s --connect-timeout 5 ifconfig.me 2>/dev/null || \
+                timeout 10 curl -s --connect-timeout 5 icanhazip.com 2>/dev/null || \
+                echo "YOUR-SERVER-IP")
     
     echo ""
     echo "=============================================="
-    echo "🔗 CONNECTION LINKS (using Cloudflare CDN)"
+    echo "🔗 CONNECTION LINKS"
     echo "=============================================="
     echo "📍 Server: $SERVER_INFO"
     echo "🌐 Cloudflare IP: $CF_IP"
+    echo "🖥️  Server IP: $SERVER_IP"
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "📱 VLESS WebSocket (Recommended):"
+    echo "📱 VLESS WebSocket (CDN, port ${HTTPS_PORT}):"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "vless://${UUID}@${CF_IP}:443?type=ws&security=tls&path=%2F&host=${DOMAIN}&sni=${DOMAIN}#${SERVER_INFO// /-}-VLESS-WS"
+    echo "vless://${UUID}@${CF_IP}:${HTTPS_PORT}?type=ws&security=tls&path=%2F&host=${DOMAIN}&sni=${DOMAIN}#${SERVER_INFO// /-}-VLESS-WS"
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "📱 VLESS gRPC:"
+    echo "📱 VLESS gRPC (CDN, port ${HTTPS_PORT}):"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "vless://${UUID}@${CF_IP}:443?type=grpc&security=tls&serviceName=grpc&host=${DOMAIN}&sni=${DOMAIN}#${SERVER_INFO// /-}-VLESS-gRPC"
+    echo "vless://${UUID}@${CF_IP}:${HTTPS_PORT}?type=grpc&security=tls&serviceName=grpc&host=${DOMAIN}&sni=${DOMAIN}#${SERVER_INFO// /-}-VLESS-gRPC"
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "📱 VMess WebSocket:"
+    echo "📱 VMess WebSocket (CDN, port ${HTTPS_PORT}):"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    VMESS_CONFIG=$(echo -n "{\"v\":\"2\",\"ps\":\"${SERVER_INFO// /-}-VMess-WS\",\"add\":\"${CF_IP}\",\"port\":\"443\",\"type\":\"none\",\"id\":\"${UUID}\",\"aid\":\"0\",\"net\":\"ws\",\"path\":\"/ws\",\"host\":\"${DOMAIN}\",\"tls\":\"tls\",\"sni\":\"${DOMAIN}\"}" | base64 -w 0 2>/dev/null || base64)
+    VMESS_CONFIG=$(echo -n "{\"v\":\"2\",\"ps\":\"${SERVER_INFO// /-}-VMess-WS\",\"add\":\"${CF_IP}\",\"port\":\"${HTTPS_PORT}\",\"type\":\"none\",\"id\":\"${UUID}\",\"aid\":\"0\",\"net\":\"ws\",\"path\":\"/ws\",\"host\":\"${DOMAIN}\",\"tls\":\"tls\",\"sni\":\"${DOMAIN}\"}" | base64 -w 0 2>/dev/null || base64)
     echo "vmess://${VMESS_CONFIG}"
     echo ""
+    if [ "$REALITY_PRIVATE_KEY" != "CHANGE-THIS-PRIVATE-KEY" ] && [ -n "$REALITY_PUBLIC_KEY" ]; then
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "📱 VLESS Reality (Direct, port ${REALITY_PORT}):"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "vless://${UUID}@${SERVER_IP}:${REALITY_PORT}?type=tcp&security=reality&pbk=${REALITY_PUBLIC_KEY}&fp=chrome&sni=${REALITY_SERVER_NAME}&sid=${REALITY_SHORT_ID}&flow=xtls-rprx-vision#${SERVER_INFO// /-}-VLESS-Reality"
+        echo ""
+    fi
     echo "=============================================="
     echo ""
     echo "📋 Your configuration has been saved to:"
     echo "   - .env (main configuration)"
-    echo "   - v2ray/config/config.json (V2Ray config)"
+    echo "   - v2ray/config/config.json (Xray config)"
     echo "   - vhost/${DOMAIN} (Nginx vhost)"
     echo ""
 else
@@ -620,7 +724,7 @@ else
         echo ""
         echo "📱 VLESS WebSocket configuration:"
         echo "   Address: $DOMAIN"
-        echo "   Port: 443"
+        echo "   Port: $HTTPS_PORT"
         echo "   UUID: $UUID"
         echo "   Encryption: none"
         echo "   Network: ws"
@@ -628,7 +732,7 @@ else
         echo "   TLS: tls"
         echo ""
         echo "📱 VLESS Link:"
-        echo "   vless://${UUID}@${DOMAIN}:443?type=ws&security=tls&path=%2F&host=${DOMAIN}&sni=${DOMAIN}&encryption=none#${DOMAIN}-VLESS-WS"
+        echo "   vless://${UUID}@${DOMAIN}:${HTTPS_PORT}?type=ws&security=tls&path=%2F&host=${DOMAIN}&sni=${DOMAIN}&encryption=none#${DOMAIN}-VLESS-WS"
     fi
 fi
 
