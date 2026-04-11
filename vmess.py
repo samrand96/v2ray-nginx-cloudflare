@@ -17,7 +17,7 @@ def vmess_config_generator(domain, uuid, ip=""):
         ip = domain
     name = domain
     j = json.dumps({
-        "v": "2", "ps": name + "-VMess-WS", "add": ip, "port": "443", "id": uuid,
+        "v": "2", "ps": f"{name}-VMess-WS", "add": ip, "port": "443", "id": uuid,
         "aid": "0", "net": "ws", "type": "none", "sni": domain,
         "host": domain, "path": "/ws", "tls": "tls"
     })

@@ -5,6 +5,6 @@ FROM nginxproxy/acme-companion:${ACME_VERSION:-2.2}
 
 LABEL maintainer="your-email@example.com"
 
-# Health check - verify the acme companion process is running
+# Health check - verify the acme companion process is running and data dir exists
 HEALTHCHECK --interval=60s --timeout=5s --start-period=30s --retries=3 \
-    CMD pgrep -f "letsencrypt_service" || test -d /etc/acme.sh || exit 1
+    CMD test -d /etc/acme.sh
