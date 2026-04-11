@@ -13,24 +13,35 @@ def read_env_var(env_file, key, default=""):
         with open(str(env_file), 'r') as f:
             for line in f:
                 line = line.strip()
-                if line.startswith(f'{key}=') and not line.startswith('#'):
-                    return line.split('=', 1)[1].strip()
+                if not line or line.startswith('#'):
+                    continue
+                if line.startswith(f'{key}='):
+                    value = line.split('=', 1)[1].strip()
+                    # Strip surrounding quotes
+                    if (value.startswith('"') and value.endswith('"')) or \
+                       (value.startswith("'") and value.endswith("'")):
+                        value = value[1:-1]
+                    # Handle inline comments
+                    if ' #' in value and not value.startswith('"'):
+                        value = value.split(' #')[0].strip()
+                    return value
     return default
 
-def vless_config_generator(domain, uuid, port="443", ip=""):
+def vless_config_generator(domain, uuid, port="443", ws_path="/", ip=""):
     if ip == "":
         ip = domain
     name = domain
-    return f"vless://{uuid}@{ip}:{port}?type=ws&security=tls&path=%2F&host={domain}&sni={domain}&encryption=none#{name}-VLESS-WS"
+    encoded_path = ws_path.replace("/", "%2F") if ws_path != "/" else "%2F"
+    return f"vless://{uuid}@{ip}:{port}?type=ws&security=tls&path={encoded_path}&host={domain}&sni={domain}&encryption=none#{name}-VLESS-WS"
 
-def vmess_config_generator(domain, uuid, port="443", ip=""):
+def vmess_config_generator(domain, uuid, port="443", ws_path="/ws", ip=""):
     if ip == "":
         ip = domain
     name = domain
     j = json.dumps({
         "v": "2", "ps": f"{name}-VMess-WS", "add": ip, "port": port, "id": uuid,
         "aid": "0", "net": "ws", "type": "none", "sni": domain,
-        "host": domain, "path": "/ws", "tls": "tls"
+        "host": domain, "path": ws_path, "tls": "tls"
     })
     return "vmess://" + base64.b64encode(j.encode('ascii')).decode('ascii')
 
@@ -63,6 +74,8 @@ reality_port = read_env_var(env_file, 'REALITY_PORT', '2083')
 reality_public_key = read_env_var(env_file, 'REALITY_PUBLIC_KEY', '')
 reality_short_id = read_env_var(env_file, 'REALITY_SHORT_ID', 'abcd1234')
 reality_server_name = read_env_var(env_file, 'REALITY_SERVER_NAME', 'www.microsoft.com')
+vless_ws_path = read_env_var(env_file, 'VLESS_WS_PATH', '/')
+vmess_ws_path = read_env_var(env_file, 'VMESS_WS_PATH', '/ws')
 
 # Fall back to docker-compose.yml if no .env
 if not domain:
@@ -90,20 +103,20 @@ if isUsingCloudFlareCDNProxy == 'yes':
                 tempIpList.append(tempIP)
             finalIP = str(random.choice(tempIpList)).strip()
             print(f"\n📱 VLESS WebSocket (CDN, port {https_port}):")
-            print(vless_config_generator(domain, uuid, https_port, finalIP))
+            print(vless_config_generator(domain, uuid, https_port, vless_ws_path, finalIP))
             print(f"\n📱 VMess WebSocket (CDN, port {https_port}):")
-            print(vmess_config_generator(domain, uuid, https_port, finalIP) + "\n")
+            print(vmess_config_generator(domain, uuid, https_port, vmess_ws_path, finalIP) + "\n")
     else:
         print("cloudflare_ip_list.txt not found, using domain directly")
         print(f"\n📱 VLESS WebSocket (CDN, port {https_port}):")
-        print(vless_config_generator(domain, uuid, https_port))
+        print(vless_config_generator(domain, uuid, https_port, vless_ws_path))
         print(f"\n📱 VMess WebSocket (CDN, port {https_port}):")
-        print(vmess_config_generator(domain, uuid, https_port))
+        print(vmess_config_generator(domain, uuid, https_port, vmess_ws_path))
 else:
     print(f"\n📱 VLESS WebSocket (port {https_port}):")
-    print(vless_config_generator(domain, uuid, https_port))
+    print(vless_config_generator(domain, uuid, https_port, vless_ws_path))
     print(f"\n📱 VMess WebSocket (port {https_port}):")
-    print(vmess_config_generator(domain, uuid, https_port))
+    print(vmess_config_generator(domain, uuid, https_port, vmess_ws_path))
 
 # Always show Reality link (direct connection, no CDN)
 if reality_public_key and reality_public_key != 'CHANGE-THIS-PUBLIC-KEY':

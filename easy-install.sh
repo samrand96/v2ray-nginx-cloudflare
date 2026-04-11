@@ -570,7 +570,9 @@ if [ -n "$REALITY_KEYS" ]; then
     REALITY_PUBLIC_KEY=$(echo "$REALITY_KEYS" | grep "Public key:" | awk '{print $3}')
     log_success "Reality keypair generated"
 else
-    log_warning "Could not auto-generate Reality keys. You can set them later in .env"
+    log_error "⚠️  Could not auto-generate Reality x25519 keys!"
+    log_warning "Reality will NOT work until you set valid keys in .env"
+    log_info "To generate keys manually, run: docker run --rm ghcr.io/xtls/xray-core x25519"
     REALITY_PRIVATE_KEY="CHANGE-THIS-PRIVATE-KEY"
     REALITY_PUBLIC_KEY="CHANGE-THIS-PUBLIC-KEY"
 fi
