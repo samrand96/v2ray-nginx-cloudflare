@@ -8,10 +8,11 @@ Effortlessly deploy V2Ray with Docker, featuring **multi-protocol support** incl
 
 The **v2ray-nginx-cloudflare** project provides both **original** and **modular** deployment options for a secure, scalable proxy instance using Docker containers. Powered by **Xray-core** (backward compatible with V2Ray), this architecture enables seamless integration with **Cloudflare** and CDNs, offering enhanced security, obfuscation, and performance.
 
-### 🎯 **Two Setup Options:**
+### 🎯 **Three Setup Options:**
 
 1. **🔄 Original Setup** - Simple VLESS-only configuration (recommended for basic use)
 2. **🆕 Modular Setup** - Multi-protocol support with VLESS, VMess, XTLS-Reality, and advanced customization
+3. **⚡ Xray Reality Only** - Standalone VLESS+XTLS-Reality on port 443 (no domain, no CDN needed, direct connection)
 
 Whether you're looking to bypass restrictions or set up a robust private proxy, this solution prioritizes reliability, compatibility, and ease of deployment.
 
@@ -75,6 +76,7 @@ v2ray-nginx-cloudflare/
 ├── .env                          # ⭐ SINGLE source of truth (all config here)
 ├── .env.example                  # Configuration template
 ├── docker-compose.modular.yml    # Multi-protocol setup (VLESS+VMess+Reality)
+├── docker-compose.reality.yml    # Xray Reality only setup (direct connection)
 ├── docker-compose.yml            # Original setup (preserved)
 ├── generate-config.sh            # Script to regenerate Xray config
 ├── vhost/
@@ -393,15 +395,16 @@ docker compose -f docker-compose.modular.yml exec v2ray cat /etc/xray/config.jso
 
 ## 🆚 **Setup Comparison**
 
-| Feature | Original Setup | Modular Setup |
-|---------|----------------|---------------|
-| **Protocols** | VLESS only | VLESS + VMess + gRPC + Reality |
-| **Custom Ports** | Yes | Yes |
-| **Customization** | Limited | Extensive |
-| **Performance** | Good | Excellent |
-| **Maintenance** | Manual | Automated |
-| **CDN Optimization** | Basic | Advanced |
-| **Resource Control** | No | Yes |
+| Feature | Original Setup | Modular Setup | Reality Only |
+|---------|----------------|---------------|--------------|
+| **Protocols** | VLESS only | VLESS + VMess + gRPC + Reality | VLESS + Reality |
+| **Port** | 443 (CDN) | 443 (CDN) + Reality port | 443 (direct) |
+| **Domain Required** | Yes | Yes | No |
+| **CDN/Cloudflare** | Yes | Yes | No (direct) |
+| **Nginx Required** | Yes | Yes | No |
+| **Customization** | Limited | Extensive | Minimal |
+| **Performance** | Good | Excellent | Best |
+| **Anti-Censorship** | Good | Excellent | Best |
 
 ---
 

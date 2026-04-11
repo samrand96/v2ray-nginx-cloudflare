@@ -1,0 +1,21 @@
+# ============================================
+# Xray Reality Only - Lightweight Setup
+# ============================================
+# Standalone VLESS+XTLS-Reality setup (no nginx, no CDN)
+# Direct connection to server on port 443
+# ============================================
+
+services:
+  # ============================================
+  # Xray Service - VLESS + XTLS-Reality Only
+  # ============================================
+  v2ray:
+    image: ghcr.io/xtls/xray-core:${XRAY_VERSION:-latest}
+    container_name: ${V2RAY_CONTAINER_NAME:-v2ray}
+    restart: ${RESTART_POLICY:-always}
+    volumes:
+      - ./v2ray/config:/etc/xray:ro
+      - ./logs/v2ray:/var/log/v2ray
+    ports:
+      # Reality listens on port 443 directly (no nginx needed)
+      - "443:443"
