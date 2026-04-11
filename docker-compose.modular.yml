@@ -12,11 +12,7 @@ networks:
 
 # Shared volumes
 volumes:
-  nginx-certs:
-    driver: local
   nginx-html:
-    driver: local
-  acme-data:
     driver: local
 
 services:
@@ -33,7 +29,7 @@ services:
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
       - ./configs:/etc/nginx/conf.d
-      - nginx-certs:/etc/nginx/certs
+      - ./certs:/etc/nginx/certs
       - ./vhost:/etc/nginx/vhost.d
       - nginx-html:/usr/share/nginx/html
       - ./logs/nginx:/var/log/nginx
@@ -62,7 +58,7 @@ services:
       - /var/run/docker.sock:/tmp/docker.sock:ro
       - ./configs/nginx.tmpl:/etc/docker-gen/templates/nginx.tmpl
       - ./configs:/etc/nginx/conf.d
-      - nginx-certs:/etc/nginx/certs
+      - ./certs:/etc/nginx/certs
       - ./vhost:/etc/nginx/vhost.d
       - nginx-html:/usr/share/nginx/html
       - ./logs/docker-gen:/var/log/docker-gen
@@ -82,9 +78,9 @@ services:
     restart: ${RESTART_POLICY:-always}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - acme-data:/etc/acme.sh
+      - ./acme:/etc/acme.sh
       - ./configs:/etc/nginx/conf.d
-      - nginx-certs:/etc/nginx/certs
+      - ./certs:/etc/nginx/certs
       - ./vhost:/etc/nginx/vhost.d
       - nginx-html:/usr/share/nginx/html
       - ./logs/acme:/var/log/acme

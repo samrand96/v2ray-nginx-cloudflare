@@ -64,10 +64,16 @@ fi
 if command -v envsubst &>/dev/null; then
     envsubst < "$TEMPLATE_FILE" > "$OUTPUT_FILE"
 else
-    # Fallback: use sed
+    # Fallback: use sed for all template variables
     log_info "Using sed for variable substitution..."
     cp "$TEMPLATE_FILE" "$OUTPUT_FILE"
     sed -i "s|\${V2RAY_UUID}|${V2RAY_UUID}|g" "$OUTPUT_FILE"
+    sed -i "s|\${VLESS_WS_PORT}|${VLESS_WS_PORT:-1310}|g" "$OUTPUT_FILE"
+    sed -i "s|\${VLESS_WS_PATH}|${VLESS_WS_PATH:-/}|g" "$OUTPUT_FILE"
+    sed -i "s|\${VLESS_GRPC_PORT}|${VLESS_GRPC_PORT:-1311}|g" "$OUTPUT_FILE"
+    sed -i "s|\${VLESS_GRPC_SERVICE}|${VLESS_GRPC_SERVICE:-grpc}|g" "$OUTPUT_FILE"
+    sed -i "s|\${VMESS_WS_PORT}|${VMESS_WS_PORT:-1312}|g" "$OUTPUT_FILE"
+    sed -i "s|\${VMESS_WS_PATH}|${VMESS_WS_PATH:-/ws}|g" "$OUTPUT_FILE"
 fi
 
 # Validate JSON (if jq is available)

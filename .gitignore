@@ -21,6 +21,12 @@ docker-compose.override.yml
 *.key
 certs/
 
+# ACME/Let's Encrypt data
+acme/
+
+# Nginx HTML (challenge files)
+html/
+
 # Backup files
 *.backup
 *.bak

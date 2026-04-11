@@ -14,13 +14,13 @@ services:
       - './vhost:/etc/nginx/vhost.d'
       - './html:/usr/share/nginx/html'
       - './logs/nginx:/var/log/nginx'
-      
+
   dockergen:
     image: 'jwilder/docker-gen:0.9'
     container_name: dockergen
     restart: always
     command: >-
-      -notify-sighup nginx -watch /etc/docker-gen/templates/nginx.tmpl 
+      -notify-sighup nginx -watch /etc/docker-gen/templates/nginx.tmpl
       /etc/nginx/conf.d/default.conf
     volumes:
       - '/var/run/docker.sock:/tmp/docker.sock:ro'
@@ -30,7 +30,7 @@ services:
       - './vhost:/etc/nginx/vhost.d'
       - './html:/usr/share/nginx/html'
       - './logs/docker-gen:/var/log/docker-gen'
-      
+
   nginx-proxy-acme:
     restart: always
     image: nginxproxy/acme-companion:2.2
@@ -47,27 +47,18 @@ services:
       - DEFAULT_EMAIL=YOUR_EMAIL
       - NGINX_PROXY_CONTAINER=nginx
       - NGINX_DOCKER_GEN_CONTAINER=dockergen
-      
+
   v2ray:
     image: v2fly/v2fly-core:v4.45.2
     container_name: v2ray
     restart: always
+    volumes:
+      - './v2ray/config:/etc/v2ray:ro'
+      - './logs/v2ray:/var/log/v2ray'
     environment:
       - VIRTUAL_HOST=${DOMAIN}
       - VIRTUAL_PORT=1310
       - LETSENCRYPT_HOST=${DOMAIN}
       - LETSENCRYPT_EMAIL=${EMAIL}
-      - v2ray.vmess.aead.forced=false
     networks:
       - default
-
-volumes:
-  certs:
-  html:
-  logs:
-  configs:
-  acme:
-  vhost:
-  nginx:
-  docker-gen:
-  v2ray:

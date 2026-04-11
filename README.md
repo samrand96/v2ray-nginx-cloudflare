@@ -10,7 +10,7 @@ The **v2ray-nginx-cloudflare** project provides both **original** and **modular*
 
 ### 🎯 **Two Setup Options:**
 
-1. **🔄 Original Setup** - Simple VMess-only configuration (legacy)
+1. **🔄 Original Setup** - Simple VLESS-only configuration (recommended for basic use)
 2. **🆕 Modular Setup** - Multi-protocol support with VLESS, VMess, and advanced customization
 
 Whether you're looking to bypass restrictions or set up a robust private proxy, this solution prioritizes reliability, compatibility, and ease of deployment.
@@ -120,17 +120,17 @@ Replace `your-domain.com` and `your-uuid` with your actual values:
 
 #### **VLESS WebSocket (Recommended):**
 ```
-vless://your-uuid@your-domain.com:443?type=ws&security=tls&path=%2Fvless-ws&host=your-domain.com#VLESS-WS
+vless://your-uuid@your-domain.com:443?type=ws&security=tls&path=%2F&host=your-domain.com&sni=your-domain.com&encryption=none#VLESS-WS
 ```
 
 #### **VLESS gRPC:**
 ```
-vless://your-uuid@your-domain.com:443?type=grpc&security=tls&serviceName=grpc&host=your-domain.com#VLESS-gRPC
+vless://your-uuid@your-domain.com:443?type=grpc&security=tls&serviceName=grpc&host=your-domain.com&sni=your-domain.com#VLESS-gRPC
 ```
 
 #### **VMess WebSocket:**
 ```
-vmess://eyJ2IjoiMiIsInBzIjoiVk1lc3MtV1MiLCJhZGQiOiJ5b3VyLWRvbWFpbi5jb20iLCJwb3J0IjoiNDQzIiwidHlwZSI6Im5vbmUiLCJpZCI6InlvdXItdXVpZCIsImFpZCI6IjAiLCJuZXQiOiJ3cyIsInBhdGgiOiIvdm1lc3Mtd3MiLCJob3N0IjoieW91ci1kb21haW4uY29tIiwidGxzIjoidGxzIn0=
+vmess://eyJ2IjoiMiIsInBzIjoiVk1lc3MtV1MiLCJhZGQiOiJ5b3VyLWRvbWFpbi5jb20iLCJwb3J0IjoiNDQzIiwidHlwZSI6Im5vbmUiLCJpZCI6InlvdXItdXVpZCIsImFpZCI6IjAiLCJuZXQiOiJ3cyIsInBhdGgiOiIvd3MiLCJob3N0IjoieW91ci1kb21haW4uY29tIiwidGxzIjoidGxzIn0=
 ```
 
 ### **📱 Recommended Client Apps:**
@@ -189,15 +189,16 @@ nano .env  # Set DOMAIN, LETSENCRYPT_EMAIL, and V2RAY_UUID
 docker compose -f docker-compose.modular.yml up -d
 ```
 
-#### **Option B: Original Setup (Legacy)**
+#### **Option B: Original Setup (VLESS only)**
 ```bash
 # Generate UUID
 UUID=$(uuidgen)
 
 # Update config
 sed -i "s/<UPSTREAM-UUID>/$UUID/g" v2ray/config/config.json
-sed -i "s/YOUR_DOMAIN/your-domain.com/g" docker-compose.yml
-sed -i "s/YOUR_EMAIL/your-email@example.com/g" docker-compose.yml
+
+# Edit docker-compose.yml: Set DOMAIN and EMAIL
+nano docker-compose.yml
 
 # Start services
 docker compose up -d
@@ -361,7 +362,7 @@ docker compose -f docker-compose.modular.yml exec v2ray cat /etc/v2ray/config.js
 
 | Feature | Original Setup | Modular Setup |
 |---------|----------------|---------------|
-| **Protocols** | VMess only | VLESS + VMess + gRPC |
+| **Protocols** | VLESS only | VLESS + VMess + gRPC |
 | **Customization** | Limited | Extensive |
 | **Performance** | Good | Excellent |
 | **Maintenance** | Manual | Automated |

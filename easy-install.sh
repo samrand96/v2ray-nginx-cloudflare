@@ -465,14 +465,14 @@ fi
 # Setup selection
 echo ""
 echo "🎯 Choose setup type:"
-echo "1) Original setup (VMess only)"
+echo "1) Original setup (VLESS only)"
 echo "2) Modular setup (Multi-protocol: VLESS+VMess) [Recommended]"
 read -p "Enter choice (1 or 2) [2]: " SETUP_CHOICE
 SETUP_CHOICE=${SETUP_CHOICE:-2}
 
 if [ "$SETUP_CHOICE" = "1" ]; then
     COMPOSE_FILE="docker-compose.yml"
-    log_info "Using original VMess-only setup"
+    log_info "Using original VLESS-only setup"
 else
     COMPOSE_FILE="docker-compose.modular.yml"
     log_info "Using modular multi-protocol setup"
@@ -610,22 +610,25 @@ if [ "$SETUP_CHOICE" = "2" ]; then
     echo "   - vhost/${DOMAIN} (Nginx vhost)"
     echo ""
 else
-    # Original VMess config
+    # Original VLESS config
     if command -v python3 &>/dev/null && [ -f "vmess.py" ]; then
         echo ""
-        log_info "Generating VMess client configuration..."
+        log_info "Generating VLESS client configuration..."
         chmod +x vmess.py
         ./vmess.py
     else
         echo ""
-        echo "📱 Manual VMess configuration:"
+        echo "📱 VLESS WebSocket configuration:"
         echo "   Address: $DOMAIN"
         echo "   Port: 443"
         echo "   UUID: $UUID"
-        echo "   Security: auto"
+        echo "   Encryption: none"
         echo "   Network: ws"
         echo "   Path: /"
         echo "   TLS: tls"
+        echo ""
+        echo "📱 VLESS Link:"
+        echo "   vless://${UUID}@${DOMAIN}:443?type=ws&security=tls&path=%2F&host=${DOMAIN}&sni=${DOMAIN}&encryption=none#${DOMAIN}-VLESS-WS"
     fi
 fi
 

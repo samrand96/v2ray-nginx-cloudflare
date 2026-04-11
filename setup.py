@@ -48,12 +48,31 @@ if isSSLEnable == 'yes':
 # SAVE CONFIG FILES
 
 config['inbounds'][0]['settings']['clients'][0]['id'] = upstreamUUID
-dockerComposeObject["services"]["v2ray"]["environment"][1] = f'VIRTUAL_HOST={domain}'
-dockerComposeObject["services"]["v2ray"]["environment"][2] = f'LETSENCRYPT_HOST='
-dockerComposeObject["services"]["nginx-proxy-acme"]["environment"][0] = f'DEFAULT_EMAIL='
+
+# Find and update environment variables by key name
+env_list = dockerComposeObject["services"]["v2ray"]["environment"]
+for i, env_var in enumerate(env_list):
+    if env_var.startswith('VIRTUAL_HOST='):
+        env_list[i] = f'VIRTUAL_HOST={domain}'
+    elif env_var.startswith('LETSENCRYPT_HOST='):
+        env_list[i] = f'LETSENCRYPT_HOST='
+    elif env_var.startswith('LETSENCRYPT_EMAIL='):
+        env_list[i] = f'LETSENCRYPT_EMAIL='
+
+acme_env_list = dockerComposeObject["services"]["nginx-proxy-acme"]["environment"]
+for i, env_var in enumerate(acme_env_list):
+    if env_var.startswith('DEFAULT_EMAIL='):
+        acme_env_list[i] = f'DEFAULT_EMAIL='
+
 if isSSLEnable == 'yes':
-    dockerComposeObject["services"]["v2ray"]["environment"][2] = f'LETSENCRYPT_HOST={domain}'
-    dockerComposeObject["services"]["nginx-proxy-acme"]["environment"][0] = f'DEFAULT_EMAIL={email}'
+    for i, env_var in enumerate(env_list):
+        if env_var.startswith('LETSENCRYPT_HOST='):
+            env_list[i] = f'LETSENCRYPT_HOST={domain}'
+        elif env_var.startswith('LETSENCRYPT_EMAIL='):
+            env_list[i] = f'LETSENCRYPT_EMAIL={email}'
+    for i, env_var in enumerate(acme_env_list):
+        if env_var.startswith('DEFAULT_EMAIL='):
+            acme_env_list[i] = f'DEFAULT_EMAIL={email}'
 
 content = json.dumps(config, indent=2)
 open(str(v2rayConfigPath), 'w', encoding='utf-8').write(content)
@@ -68,5 +87,5 @@ if isSSLEnable == 'yes':
     print(f'Email: {email}')
 print('---------\n')
 print('\nDone!')
-print('- Run docker-compose up -d for bringing up services')
-print('- Run ./vmess.py to get your vmess links to share and import in clients\n')
+print('- Run docker compose up -d for bringing up services')
+print('- Run ./vmess.py to get your VLESS/VMess links to share and import in clients\n')
