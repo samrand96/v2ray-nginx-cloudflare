@@ -16,6 +16,11 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Constants
+DEFAULT_SHORT_ID="abcd1234"
+PLACEHOLDER_PRIVATE_KEY="CHANGE-THIS-PRIVATE-KEY"
+PLACEHOLDER_PUBLIC_KEY="CHANGE-THIS-PUBLIC-KEY"
+
 # Logging functions
 log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 log_success() { echo -e "${GREEN}✅ $1${NC}"; }
@@ -387,7 +392,7 @@ generate_v2ray_config() {
     export REALITY_DEST="${REALITY_DEST:-www.microsoft.com:443}"
     export REALITY_SERVER_NAME="${REALITY_SERVER_NAME:-www.microsoft.com}"
     export REALITY_PRIVATE_KEY="${REALITY_PRIVATE_KEY}"
-    export REALITY_SHORT_ID="${REALITY_SHORT_ID:-abcd1234}"
+    export REALITY_SHORT_ID="${REALITY_SHORT_ID:-$DEFAULT_SHORT_ID}"
     
     # Use template if available
     if [ -f "./v2ray/config/config.template.json" ]; then
@@ -587,7 +592,7 @@ if [ "$SETUP_CHOICE" = "3" ]; then
     REALITY_DEST=${REALITY_DEST:-www.microsoft.com:443}
     REALITY_SERVER_NAME=$(echo "$REALITY_DEST" | cut -d: -f1)
 
-    REALITY_SHORT_ID=$(head -c 4 /dev/urandom 2>/dev/null | od -A n -t x1 | tr -d ' \n' || echo "abcd1234")
+    REALITY_SHORT_ID=$(head -c 4 /dev/urandom 2>/dev/null | od -A n -t x1 | tr -d ' \n' || echo "$DEFAULT_SHORT_ID")
     REALITY_PORT=443
 
     log_success "Reality Port: $REALITY_PORT (direct connection)"
@@ -648,15 +653,15 @@ else
                 log_success "Reality keypair generated"
             else
                 log_warning "Failed to parse Reality keys"
-                REALITY_PRIVATE_KEY="CHANGE-THIS-PRIVATE-KEY"
-                REALITY_PUBLIC_KEY="CHANGE-THIS-PUBLIC-KEY"
+                REALITY_PRIVATE_KEY="$PLACEHOLDER_PRIVATE_KEY"
+                REALITY_PUBLIC_KEY="$PLACEHOLDER_PUBLIC_KEY"
             fi
         else
             log_warning "Could not auto-generate Reality x25519 keys"
             log_info "Reality will be DISABLED. Other protocols will still work."
             log_info "To enable Reality later, generate keys: docker run --rm ghcr.io/xtls/xray-core x25519"
-            REALITY_PRIVATE_KEY="CHANGE-THIS-PRIVATE-KEY"
-            REALITY_PUBLIC_KEY="CHANGE-THIS-PUBLIC-KEY"
+            REALITY_PRIVATE_KEY="$PLACEHOLDER_PRIVATE_KEY"
+            REALITY_PUBLIC_KEY="$PLACEHOLDER_PUBLIC_KEY"
         fi
 
         read -p "Enter Reality port [2083]: " REALITY_PORT
@@ -679,7 +684,7 @@ else
         REALITY_DEST=${REALITY_DEST:-www.microsoft.com:443}
         REALITY_SERVER_NAME=$(echo "$REALITY_DEST" | cut -d: -f1)
 
-        REALITY_SHORT_ID=$(head -c 4 /dev/urandom 2>/dev/null | od -A n -t x1 | tr -d ' \n' || echo "abcd1234")
+        REALITY_SHORT_ID=$(head -c 4 /dev/urandom 2>/dev/null | od -A n -t x1 | tr -d ' \n' || echo "$DEFAULT_SHORT_ID")
 
         log_success "Reality Port: $REALITY_PORT"
         log_success "Reality Dest: $REALITY_DEST"
@@ -688,9 +693,9 @@ else
         REALITY_PORT=2083
         REALITY_DEST="www.microsoft.com:443"
         REALITY_SERVER_NAME="www.microsoft.com"
-        REALITY_PRIVATE_KEY="CHANGE-THIS-PRIVATE-KEY"
-        REALITY_PUBLIC_KEY="CHANGE-THIS-PUBLIC-KEY"
-        REALITY_SHORT_ID="abcd1234"
+        REALITY_PRIVATE_KEY="$PLACEHOLDER_PRIVATE_KEY"
+        REALITY_PUBLIC_KEY="$PLACEHOLDER_PUBLIC_KEY"
+        REALITY_SHORT_ID="$DEFAULT_SHORT_ID"
     fi
 fi
 
@@ -767,7 +772,7 @@ if [ "$SETUP_CHOICE" = "3" ]; then
 
 elif [ "$SETUP_CHOICE" = "2" ]; then
     # Modular: check if Reality keys are valid
-    if [ "$REALITY_PRIVATE_KEY" = "CHANGE-THIS-PRIVATE-KEY" ] || [ -z "$REALITY_PRIVATE_KEY" ]; then
+    if [ "$REALITY_PRIVATE_KEY" = "$PLACEHOLDER_PRIVATE_KEY" ] || [ -z "$REALITY_PRIVATE_KEY" ]; then
         # Reality keys are invalid — use template WITHOUT Reality to avoid Xray crash
         log_warning "Reality keys not configured — generating config WITHOUT Reality inbound"
         log_info "VLESS-WS, VLESS-gRPC, and VMess-WS will still work on port 443"
@@ -919,7 +924,7 @@ elif [ "$SETUP_CHOICE" = "2" ]; then
     VMESS_CONFIG=$(echo -n "{\"v\":\"2\",\"ps\":\"${SERVER_INFO// /-}-VMess-WS\",\"add\":\"${CF_IP}\",\"port\":\"443\",\"type\":\"none\",\"id\":\"${UUID}\",\"aid\":\"0\",\"net\":\"ws\",\"path\":\"/ws\",\"host\":\"${DOMAIN}\",\"tls\":\"tls\",\"sni\":\"${DOMAIN}\"}" | base64 -w 0 2>/dev/null || base64)
     echo "vmess://${VMESS_CONFIG}"
     echo ""
-    if [ "$REALITY_PRIVATE_KEY" != "CHANGE-THIS-PRIVATE-KEY" ] && [ -n "$REALITY_PUBLIC_KEY" ] && [ "$REALITY_PUBLIC_KEY" != "CHANGE-THIS-PUBLIC-KEY" ]; then
+    if [ "$REALITY_PRIVATE_KEY" != "$PLACEHOLDER_PRIVATE_KEY" ] && [ -n "$REALITY_PUBLIC_KEY" ] && [ "$REALITY_PUBLIC_KEY" != "$PLACEHOLDER_PUBLIC_KEY" ]; then
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo "📱 VLESS Reality (Direct, port ${REALITY_PORT}):"
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
