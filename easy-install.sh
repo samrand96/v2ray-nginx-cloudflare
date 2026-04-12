@@ -278,21 +278,21 @@ generate_reality_keys() {
         # Try default entrypoint first (image entrypoint = xray)
         REALITY_KEYS=$(docker run --rm ghcr.io/xtls/xray-core x25519 2>&1) || true
 
-        # If that didn't produce "Private key:", try explicit binary path
-        if ! echo "$REALITY_KEYS" | grep -q "Private key:"; then
+        # If that didn't produce key output, try explicit binary path
+        if ! echo "$REALITY_KEYS" | grep -qi "PrivateKey\|Private key"; then
             log_warning "Retrying with explicit xray binary path..."
             REALITY_KEYS=$(docker run --rm --entrypoint xray ghcr.io/xtls/xray-core x25519 2>&1) || true
         fi
 
         # Last resort: try /usr/bin/xray
-        if ! echo "$REALITY_KEYS" | grep -q "Private key:"; then
+        if ! echo "$REALITY_KEYS" | grep -qi "PrivateKey\|Private key"; then
             REALITY_KEYS=$(docker run --rm --entrypoint /usr/bin/xray ghcr.io/xtls/xray-core x25519 2>&1) || true
         fi
     fi
 
-    if echo "$REALITY_KEYS" | grep -q "Private key:"; then
-        REALITY_PRIVATE_KEY=$(echo "$REALITY_KEYS" | grep "Private key:" | awk '{print $3}')
-        REALITY_PUBLIC_KEY=$(echo "$REALITY_KEYS" | grep "Public key:" | awk '{print $3}')
+    if echo "$REALITY_KEYS" | grep -qi "PrivateKey\|Private key"; then
+        REALITY_PRIVATE_KEY=$(echo "$REALITY_KEYS" | grep -i "PrivateKey\|Private key" | awk '{print $NF}')
+        REALITY_PUBLIC_KEY=$(echo "$REALITY_KEYS" | grep -i "PublicKey\|Public key" | awk '{print $NF}')
         if [ -n "$REALITY_PRIVATE_KEY" ] && [ -n "$REALITY_PUBLIC_KEY" ]; then
             log_success "Reality keypair generated successfully"
             return 0
