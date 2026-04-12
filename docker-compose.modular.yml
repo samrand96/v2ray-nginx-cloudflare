@@ -1,8 +1,8 @@
 # ============================================
-# V2Ray + Nginx + Cloudflare - Modular Setup
+# Xray Dual-Mode Setup: VLESS-WS + VLESS-Reality
 # ============================================
 # All configuration is read from the root .env file
-# This is a multi-protocol setup supporting VLESS-WS, VLESS-gRPC, and VMess-WS
+# VLESS-WS goes through nginx/CDN, Reality is direct
 # ============================================
 
 # Shared network for all services
@@ -97,27 +97,23 @@ services:
       - dockergen
 
   # ============================================
-  # V2Ray Service - Multi-Protocol Proxy Server
-  # Uses Xray-core for XTLS-Reality support
+  # Xray Service — VLESS-WS + VLESS-Reality
   # ============================================
   v2ray:
     image: ghcr.io/xtls/xray-core:${XRAY_VERSION:-latest}
     container_name: ${V2RAY_CONTAINER_NAME:-v2ray}
     restart: ${RESTART_POLICY:-always}
     environment:
-      # nginx-proxy configuration - VIRTUAL_HOST is the key for routing
       - VIRTUAL_HOST=${DOMAIN:-your-domain.com}
       - LETSENCRYPT_HOST=${DOMAIN:-your-domain.com}
       - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-your-email@example.com}
-      # Use VLESS WS port as the default VIRTUAL_PORT
       - VIRTUAL_PORT=${VLESS_WS_PORT:-1310}
     volumes:
       - ./v2ray/config:/etc/xray:ro
       - ./logs/v2ray:/var/log/v2ray
     ports:
       # Reality port exposed directly (bypasses nginx/CDN)
-      # Note: changing VLESS_REALITY_PORT also requires regenerating xray config
-      - "${REALITY_PORT:-2083}:${VLESS_REALITY_PORT:-1313}"
+      - "${REALITY_PORT:-2083}:1313"
     networks:
       - v2ray-network
     depends_on:

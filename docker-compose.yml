@@ -44,7 +44,7 @@ services:
       - './html:/usr/share/nginx/html'
       - './logs/acme:/var/log/acme'
     environment:
-      - DEFAULT_EMAIL=YOUR_EMAIL
+      - DEFAULT_EMAIL=${LETSENCRYPT_EMAIL}
       - NGINX_PROXY_CONTAINER=nginx
       - NGINX_DOCKER_GEN_CONTAINER=dockergen
 
@@ -55,10 +55,7 @@ services:
     volumes:
       - './v2ray/config:/etc/xray:ro'
       - './logs/v2ray:/var/log/v2ray'
-    ports:
-      # Reality port exposed directly (bypasses nginx/CDN)
-      # Note: changing VLESS_REALITY_PORT also requires regenerating xray config
-      - '${REALITY_PORT:-2083}:${VLESS_REALITY_PORT:-1313}'
+    # No extra ports - WS traffic is proxied through nginx
     environment:
       - VIRTUAL_HOST=${DOMAIN}
       - VIRTUAL_PORT=1310

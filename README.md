@@ -1,643 +1,285 @@
-# V2Ray + NGINX + Cloudflare Deployment via Docker
+# Xray Proxy — VLESS-WS + VLESS-Reality via Docker
 
-Effortlessly deploy V2Ray with Docker, featuring **multi-protocol support** including **VLESS+XTLS-Reality** and fully optimized for compatibility with **Cloudflare** and other major **CDNs**.
-
----
-
-## Project Overview
-
-The **v2ray-nginx-cloudflare** project provides both **original** and **modular** deployment options for a secure, scalable proxy instance using Docker containers. Powered by **Xray-core** (backward compatible with V2Ray), this architecture enables seamless integration with **Cloudflare** and CDNs, offering enhanced security, obfuscation, and performance.
-
-### 🎯 **Three Setup Options:**
-
-1. **🔄 Original Setup** - Simple VLESS-only configuration (recommended for basic use)
-2. **🆕 Modular Setup** - Multi-protocol support with VLESS, VMess, XTLS-Reality, and advanced customization
-3. **⚡ Xray Reality Only** - Standalone VLESS+XTLS-Reality on port 443 (no domain, no CDN needed, direct connection)
-
-Whether you're looking to bypass restrictions or set up a robust private proxy, this solution prioritizes reliability, compatibility, and ease of deployment.
+Deploy an Xray proxy server with Docker supporting **VLESS + WebSocket + CDN** and/or **VLESS + XTLS-Reality** (direct connection). Fully optimized for **Cloudflare** and other major CDNs.
 
 ---
 
-## 🚀 **Quick Install (Recommended)**
+## Two Deployment Modes
 
-**One-command installation** - automatically detects your system and sets up everything:
+| | VLESS + WS + CDN | VLESS + XTLS-Reality |
+|---|---|---|
+| **Transport** | WebSocket over TLS | TCP with Reality TLS camouflage |
+| **Domain required** | Yes | No |
+| **CDN/Cloudflare** | Yes (recommended) | No — direct connection |
+| **Nginx required** | Yes | No |
+| **Anti-censorship** | Good | Excellent |
+| **Performance** | Excellent | Excellent |
+
+You can run **either mode alone** or **both simultaneously** (dual-mode). When running both, Reality uses its own dedicated port.
+
+---
+
+## Quick Install
+
+One command — detects your system, installs Docker, and sets up everything:
 
 ```bash
 sudo bash <(curl -s https://raw.githubusercontent.com/samrand96/v2ray-nginx-cloudflare/main/easy-install.sh)
 ```
 
-**What it does:**
-- ✅ Detects your Linux distribution (Ubuntu, Debian, CentOS, Fedora, Arch, Alpine, etc.)
-- ✅ Installs Docker and Docker Compose if needed
-- ✅ Lets you choose between original or modular setup
-- ✅ Configures multi-protocol support (VLESS+VMess+Reality)
-- ✅ Generates UUID and Reality x25519 keypair
-- ✅ Customizable HTTPS and Reality ports
-- ✅ Sets up SSL certificates automatically
-- ✅ Provides ready-to-use connection links
+The script will ask you to choose:
+
+1. **VLESS + WS + CDN** — requires a domain pointed to your server
+2. **VLESS + XTLS-Reality** — direct connection, no domain needed
+3. **Both** — requires domain + a separate port for Reality
 
 ---
 
-## 🌟 **Multi-Protocol Support (New!)**
+## How It Works
 
-The modular setup supports **four protocols** including Cloudflare-compatible and direct-connection options:
+### Mode 1: VLESS + WebSocket + CDN
 
-### **🥇 VLESS + WebSocket + TLS (Best for CDN)**
-- **Port:** 1310 (internal), HTTPS port (external, default 443)
-- **Path:** `/` 
-- **Performance:** ⭐⭐⭐⭐⭐
-- **CDN Compatible:** ✅ Excellent
+Traffic flows through Cloudflare CDN:
 
-### **🥈 VLESS + gRPC + TLS**
-- **Port:** 1311 (internal), HTTPS port (external, default 443)
-- **Service:** `grpc`
-- **Performance:** ⭐⭐⭐⭐
-- **CDN Compatible:** ✅ Good
+```
+Client → Cloudflare CDN → Nginx (TLS termination) → Xray (VLESS-WS on port 1310)
+```
 
-### **🥉 VMess + WebSocket + TLS**
-- **Port:** 1312 (internal), HTTPS port (external, default 443)
-- **Path:** `/ws`
-- **Performance:** ⭐⭐⭐
-- **CDN Compatible:** ✅ Good (Legacy)
+- Nginx handles TLS certificates via Let's Encrypt (ACME)
+- WebSocket traffic on path `/` is reverse-proxied to Xray
+- External port: 443 (HTTPS)
 
-### **🔐 VLESS + XTLS-Reality (Direct Connection)**
-- **Port:** 1313 (internal), Reality port (external, default 2083)
-- **Network:** TCP
-- **Performance:** ⭐⭐⭐⭐⭐
-- **CDN Compatible:** ❌ Direct connection (bypasses CDN)
-- **Anti-Censorship:** ⭐⭐⭐⭐⭐ (mimics real website TLS fingerprint)
+### Mode 2: VLESS + XTLS-Reality
+
+Traffic connects directly to your server:
+
+```
+Client → Xray (VLESS-Reality with TLS camouflage)
+```
+
+- No nginx, no CDN — Xray handles everything
+- Reality makes your server look like a legitimate website (e.g. microsoft.com)
+- External port: configurable (default 443 standalone, 2083 in dual-mode)
+
+### Dual Mode (Both)
+
+Both protocols run simultaneously in the same Xray container:
+
+- VLESS-WS on internal port 1310 (proxied by nginx on port 443)
+- VLESS-Reality on internal port 1313 (exposed directly on your chosen Reality port)
 
 ---
 
-## 📦 **Modular Architecture**
+## Project Structure
 
 ```
-v2ray-nginx-cloudflare/
-├── .env                          # ⭐ SINGLE source of truth (all config here)
-├── .env.example                  # Configuration template
-├── docker-compose.modular.yml    # Multi-protocol setup (VLESS+VMess+Reality)
-├── docker-compose.reality.yml    # Xray Reality only setup (direct connection)
-├── docker-compose.yml            # Original setup (preserved)
-├── generate-config.sh            # Script to regenerate Xray config
-├── vhost/
-│   └── default                   # Nginx location blocks for CDN protocols
-├── configs/
-│   └── nginx.tmpl                # Nginx-proxy template
-└── v2ray/config/
-    ├── config.template.json      # Xray config template
-    └── config.json               # Generated Xray config
+.env                              # All configuration (single source of truth)
+docker-compose.yml                # WS-only mode (nginx + xray)
+docker-compose.modular.yml        # Dual mode (nginx + xray with WS + Reality)
+docker-compose.reality.yml        # Reality-only mode (xray only)
+easy-install.sh                   # Interactive setup script
+generate-config.sh                # Regenerate xray config from .env
+vmess.py                          # Generate connection share links
+vhost/default                     # Nginx WebSocket proxy config
+v2ray/config/
+├── config.template.json          # Xray template (WS + Reality)
+├── config.no-reality.template.json   # Xray template (WS only)
+├── config.reality-only.template.json # Xray template (Reality only)
+└── config.json                   # Generated runtime config
 ```
-
-### **🎛️ Centralized Configuration:**
-- **Single `.env` file** - All services read from one place
-- **No duplicate configs** - Change once, apply everywhere
-- **Easy management** - Edit `.env` and restart services
-- **Version control** - All settings in environment variables
 
 ---
 
-## 🐧 **System Requirements & Compatibility**
+## Client Configuration
 
-### **Supported Linux Distributions:**
-- ✅ **Ubuntu** (18.04, 20.04, 22.04, 24.04+)
-- ✅ **Debian** (9, 10, 11, 12+)
-- ✅ **CentOS/RHEL** (7, 8, 9)
-- ✅ **Rocky Linux / AlmaLinux**
-- ✅ **Fedora** (35+)
-- ✅ **Arch Linux / Manjaro**
-- ✅ **Alpine Linux**
-- ✅ **openSUSE / SLES**
+### VLESS + WebSocket (CDN)
 
-### **Hardware Requirements:**
-- **CPU:** 1+ cores
-- **RAM:** 512MB+ (1GB+ recommended)
-- **Storage:** 2GB+ free space
-- **Network:** Public IP with port 80 access (ACME), plus your HTTPS and Reality ports
+```
+vless://<UUID>@<CLOUDFLARE-IP>:443?type=ws&security=tls&path=%2F&host=<DOMAIN>&sni=<DOMAIN>&encryption=none#VLESS-WS
+```
 
-### **Recommended VPS:**
-**Hetzner** offers excellent performance and value:
-- 2 vCPU, 4 GB RAM, 20 TB Bandwidth
-- IPv4 & IPv6 support
-- **€4.5/month** with **€20 credit**: [https://bit.ly/ssr_vps](https://bit.ly/ssr_vps)
+**Settings:**
+- Address: your domain (or Cloudflare IP)
+- Port: 443
+- UUID: your generated UUID
+- Network: ws
+- Security: tls
+- Path: /
+- SNI/Host: your domain
+
+### VLESS + XTLS-Reality (Direct)
+
+```
+vless://<UUID>@<SERVER-IP>:<REALITY-PORT>?type=tcp&security=reality&pbk=<PUBLIC-KEY>&fp=chrome&sni=<SNI>&sid=<SHORT-ID>&flow=xtls-rprx-vision#VLESS-Reality
+```
+
+**Settings:**
+- Address: your server IP (NOT domain)
+- Port: your Reality port
+- UUID: your generated UUID
+- Network: tcp
+- Security: reality
+- Flow: xtls-rprx-vision
+- Public Key: from setup output
+- Fingerprint: chrome
+- SNI: the Reality destination domain (e.g. www.microsoft.com)
+- Short ID: from setup output
+
+### Recommended Client Apps
+
+| Platform | App |
+|---|---|
+| Android | v2rayNG, Clash Meta |
+| iOS | Shadowrocket, Streisand |
+| Windows | v2rayN, Clash Verge, NekoRay |
+| macOS | Clash Verge, V2RayXS |
+| Linux | NekoRay, Clash Verge |
 
 ---
 
-## 📱 **Client Configurations**
+## Manual Installation
 
-### **Quick Connection Links:**
+### 1. Prepare DNS (WS mode only)
 
-Replace `your-domain.com` and `your-uuid` with your actual values:
+Create an A record pointing your domain to your server IP. Temporarily disable Cloudflare proxy (grey cloud).
 
-#### **VLESS Reality (Direct Connection):**
-```
-vless://your-uuid@your-server-ip:2083?type=tcp&security=reality&pbk=your-public-key&fp=chrome&sni=www.microsoft.com&sid=your-short-id&flow=xtls-rprx-vision#VLESS-Reality
-```
+### 2. Install Docker
 
-#### **VLESS WebSocket (Recommended):**
-```
-vless://your-uuid@your-domain.com:443?type=ws&security=tls&path=%2F&host=your-domain.com&sni=your-domain.com&encryption=none#VLESS-WS
-```
-
-#### **VLESS gRPC:**
-```
-vless://your-uuid@your-domain.com:443?type=grpc&security=tls&serviceName=grpc&host=your-domain.com&sni=your-domain.com#VLESS-gRPC
-```
-
-#### **VMess WebSocket:**
-```
-vmess://eyJ2IjoiMiIsInBzIjoiVk1lc3MtV1MiLCJhZGQiOiJ5b3VyLWRvbWFpbi5jb20iLCJwb3J0IjoiNDQzIiwidHlwZSI6Im5vbmUiLCJpZCI6InlvdXItdXVpZCIsImFpZCI6IjAiLCJuZXQiOiJ3cyIsInBhdGgiOiIvd3MiLCJob3N0IjoieW91ci1kb21haW4uY29tIiwidGxzIjoidGxzIn0=
-```
-
-### **📱 Recommended Client Apps:**
-
-#### **Android:**
-- **v2rayNG** - Supports all protocols including Reality
-- **Clash Meta for Android** - Modern and user-friendly
-
-#### **iOS:**
-- **OneClick** - Supports VLESS and VMess
-- **Shadowrocket** - Paid but excellent (supports Reality)
-
-#### **Desktop:**
-- **Xray Desktop** - Official Xray-based client
-- **Clash Verge** - Modern GUI with Clash Meta core (supports Reality)
-- **NekoRay** - Feature-rich client (supports Reality)
-
----
-
-## 🛠️ **Manual Installation Guide**
-
-If you prefer manual setup or need custom configuration:
-
-### **1. Prepare DNS**
-Create an **A record** pointing to your server's IP. Temporarily disable CDN proxy.
-
-### **2. Install Docker**
 ```bash
-# Download and run our universal installer
-curl -fsSL https://raw.githubusercontent.com/samrand96/v2ray-nginx-cloudflare/main/install-docker.sh | sudo bash
+curl -fsSL https://get.docker.com | sudo bash
 ```
 
-### **3. Clone Repository**
+### 3. Clone & Configure
+
 ```bash
 git clone https://github.com/samrand96/v2ray-nginx-cloudflare.git
 cd v2ray-nginx-cloudflare
+
+# Run the interactive setup
+sudo bash easy-install.sh
 ```
 
-### **4. Choose Setup Type**
+### 4. Enable Cloudflare CDN (WS mode)
 
-#### **Option A: Modular Setup (Recommended)**
-```bash
-# Copy environment template
-cp .env.example .env
-
-# Generate UUID
-UUID=$(uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid)
-
-# Edit the SINGLE configuration file
-nano .env  # Set DOMAIN, LETSENCRYPT_EMAIL, and V2RAY_UUID
-
-# Generate V2Ray config from template
-./generate-config.sh
-
-# Start all services
-docker compose -f docker-compose.modular.yml up -d
-```
-
-#### **Option B: Original Setup (VLESS only)**
-```bash
-# Generate UUID
-UUID=$(uuidgen)
-
-# Update config
-sed -i "s/<UPSTREAM-UUID>/$UUID/g" v2ray/config/config.json
-
-# Edit docker-compose.yml: Set DOMAIN and EMAIL
-nano docker-compose.yml
-
-# Start services
-docker compose up -d
-```
-
-### **5. Enable Cloudflare CDN**
-Return to your DNS settings and **enable the proxy/CDN** feature.
+After setup completes and SSL certificates are issued, enable Cloudflare proxy (orange cloud).
 
 ---
 
-## 🔧 **Advanced Configuration**
+## Configuration Reference
 
-### **Centralized Configuration (Modular Setup):**
-All configuration is in the root `.env` file:
+All settings are in the `.env` file:
+
 ```bash
-# Domain and SSL
-DOMAIN=your-domain.com
-LETSENCRYPT_EMAIL=your@email.com
-
-# Xray UUID (generate with: uuidgen)
+# UUID
 V2RAY_UUID=your-uuid-here
 
-# Customizable Ports
-# HTTP_PORT must remain 80 for ACME (Let's Encrypt) - DO NOT CHANGE
-HTTP_PORT=80
-# HTTPS port can be customized (443, 8443, 2053, etc.)
+# Domain (WS mode)
+DOMAIN=your-domain.com
+LETSENCRYPT_EMAIL=your@email.com
 HTTPS_PORT=443
-# Reality port (direct connection, no CDN)
+
+# Reality settings
 REALITY_PORT=2083
-
-# Protocol ports (internal container ports)
-VLESS_WS_PORT=1310      # VLESS WebSocket
-VLESS_GRPC_PORT=1311    # VLESS gRPC
-VMESS_WS_PORT=1312      # VMess WebSocket
-VLESS_REALITY_PORT=1313 # VLESS Reality
-
-# Protocol paths
-VLESS_WS_PATH=/
-VLESS_GRPC_SERVICE=grpc
-VMESS_WS_PATH=/ws
-
-# VLESS + XTLS-Reality Configuration
-# Generate keys: docker run --rm ghcr.io/xtls/xray-core x25519
 REALITY_DEST=www.microsoft.com:443
 REALITY_SERVER_NAME=www.microsoft.com
 REALITY_PRIVATE_KEY=your-private-key
 REALITY_PUBLIC_KEY=your-public-key
-REALITY_SHORT_ID=abcd1234
+REALITY_SHORT_ID=your-short-id
 ```
 
-After editing `.env`, regenerate V2Ray config:
+After editing `.env`, regenerate the Xray config:
+
 ```bash
 ./generate-config.sh
 docker compose -f docker-compose.modular.yml restart v2ray
 ```
 
-### **Resource Limits:**
-Add to `.env` file:
-```bash
-CPU_LIMIT=1.0
-MEMORY_LIMIT=512M
-MEMORY_RESERVATION=256M
-```
+---
 
-### **Service Management:**
-```bash
-# Individual service control
-docker compose -f docker-compose.modular.yml stop v2ray
-docker compose -f docker-compose.modular.yml start nginx
-docker compose -f docker-compose.modular.yml restart nginx-proxy-acme
+## Management Commands
 
-# Rebuild and restart
-docker compose -f docker-compose.modular.yml up -d --force-recreate
+```bash
+# View status
+docker compose -f <COMPOSE-FILE> ps
 
 # View logs
-docker compose -f docker-compose.modular.yml logs -f v2ray
-docker compose -f docker-compose.modular.yml logs -f nginx
+docker compose -f <COMPOSE-FILE> logs -f v2ray
+
+# Restart
+docker compose -f <COMPOSE-FILE> restart
+
+# Stop
+docker compose -f <COMPOSE-FILE> down
+
+# Get connection links
+python3 vmess.py
+
+# Test xray config
+docker compose -f <COMPOSE-FILE> exec v2ray xray run -test -c /etc/xray/config.json
 ```
 
----
-
-## 🔐 **Security Best Practices**
-
-1. **🆔 Unique UUID:** Always generate a new UUID for Xray
-2. **🔒 Strong SSL:** Use "Full (strict)" mode in Cloudflare
-3. **🔑 Reality Keys:** Generate unique x25519 keypair: `docker run --rm ghcr.io/xtls/xray-core x25519`
-4. **📊 Monitor logs:** Regularly check for suspicious activity
-5. **🔄 Keep updated:** Update service versions in `.env` files
-6. **🛡️ Firewall:** Only expose necessary ports (80 for ACME, your HTTPS port, your Reality port)
-7. **🔌 Custom Ports:** Use non-standard HTTPS/Reality ports to avoid detection
+Replace `<COMPOSE-FILE>` with your compose file (`docker-compose.yml`, `docker-compose.modular.yml`, or `docker-compose.reality.yml`).
 
 ---
 
-## 🐛 **Troubleshooting**
+## Troubleshooting
 
-### **Connection Issues:**
+### Connection Issues
+
 ```bash
-# Check service status
-docker compose -f docker-compose.modular.yml ps
+# Check all containers are running
+docker compose -f <COMPOSE-FILE> ps
 
-# View all logs
-docker compose -f docker-compose.modular.yml logs
+# Check xray logs
+docker compose -f <COMPOSE-FILE> logs v2ray
 
-# Test configuration
-docker compose -f docker-compose.modular.yml exec v2ray xray run -test -c /etc/xray/config.json
+# Check nginx logs (WS mode)
+docker compose -f <COMPOSE-FILE> logs nginx
+
+# Verify xray config
+docker compose -f <COMPOSE-FILE> exec v2ray cat /etc/xray/config.json
 ```
 
-### **Certificate Issues:**
+### SSL Certificate Issues (WS mode)
+
 ```bash
 # Check ACME logs
-docker compose -f docker-compose.modular.yml logs nginx-proxy-acme
+docker compose -f <COMPOSE-FILE> logs nginx-proxy-acme
 
-# Force renewal
-docker compose -f docker-compose.modular.yml exec nginx-proxy-acme /app/force_renew
+# Ensure port 80 is open (required for Let's Encrypt HTTP-01 challenge)
+# Ensure DNS A record points to server and Cloudflare proxy is OFF during setup
 ```
 
-### **Clean Restart:**
-```bash
-# Stop all services
-docker compose -f docker-compose.modular.yml down
+### Reality Issues
 
-# Clean rebuild
-docker compose -f docker-compose.modular.yml build --no-cache
-docker compose -f docker-compose.modular.yml up -d
-```
-
-### 1. Check if all containers are running
 ```bash
-docker compose -f docker-compose.modular.yml ps
-```
+# Verify Reality keys were generated
+grep REALITY .env
 
-### 2. Check V2Ray container logs
-```bash
-docker compose -f docker-compose.modular.yml logs v2ray
-```
-
-### 3. Check nginx logs
-```bash
-docker compose -f docker-compose.modular.yml logs nginx
-```
-
-### 4. Check docker-gen logs
-```bash
-docker compose -f docker-compose.modular.yml logs dockergen
-```
-
-### 5. Check if Xray is listening on the correct ports
-```bash
-docker compose -f docker-compose.modular.yml exec v2ray netstat -tlnp
-```
-
-### 6. Test connectivity from nginx container
-```bash
-docker compose -f docker-compose.modular.yml exec nginx curl -I http://v2ray:1310
-```
-
-### 7. Check generated nginx configuration
-```bash
-docker compose -f docker-compose.modular.yml exec nginx cat /etc/nginx/conf.d/default.conf
-```
-
-### 8. Check if Xray config was generated properly
-```bash
-docker compose -f docker-compose.modular.yml exec v2ray cat /etc/xray/config.json
+# Test from client: ensure server IP, port, public key, SNI, and short ID match
+# Ensure the Reality port is open in your firewall
 ```
 
 ---
 
-## 📊 **Performance Comparison**
+## Security Notes
 
-| Protocol | Speed | CPU Usage | Compatibility | Cloudflare CDN | Anti-Censorship |
-|----------|-------|-----------|---------------|----------------|-----------------|
-| VLESS+Reality | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ❌ Direct | ⭐⭐⭐⭐⭐ |
-| VLESS+WS | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ✅ Excellent | ⭐⭐⭐ |
-| VLESS+gRPC | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ✅ Good | ⭐⭐⭐ |
-| VMess+WS | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ✅ Good | ⭐⭐ |
-
----
-
-## 🆚 **Setup Comparison**
-
-| Feature | Original Setup | Modular Setup | Reality Only |
-|---------|----------------|---------------|--------------|
-| **Protocols** | VLESS only | VLESS + VMess + gRPC + Reality | VLESS + Reality |
-| **Port** | 443 (CDN) | 443 (CDN) + Reality port | 443 (direct) |
-| **Domain Required** | Yes | Yes | No |
-| **CDN/Cloudflare** | Yes | Yes | No (direct) |
-| **Nginx Required** | Yes | Yes | No |
-| **Customization** | Limited | Extensive | Minimal |
-| **Performance** | Good | Excellent | Best |
-| **Anti-Censorship** | Good | Excellent | Best |
+- Always generate a unique UUID for each deployment
+- Generate unique x25519 keys: `docker run --rm ghcr.io/xtls/xray-core x25519`
+- Use Cloudflare "Full (strict)" SSL mode for WS
+- Only expose necessary ports (80 for ACME, HTTPS port, Reality port)
+- Monitor logs regularly for suspicious activity
 
 ---
 
-## 🎯 **Detailed Client Configurations**
+## Supported Systems
 
-### **VLESS + XTLS-Reality (Best Anti-Censorship)**
+Ubuntu, Debian, CentOS, RHEL, Rocky Linux, AlmaLinux, Fedora, Arch Linux, Manjaro, Alpine Linux, openSUSE.
 
-**Connection Details:**
-- **Server:** your-server-ip (direct, NOT CDN)
-- **Port:** 2083 (or your custom Reality port)
-- **UUID:** your-generated-uuid
-- **Network:** tcp
-- **Security:** reality
-- **Flow:** xtls-rprx-vision
-- **Public Key:** your-reality-public-key
-- **SNI:** www.microsoft.com
-- **Short ID:** your-short-id
-- **Fingerprint:** chrome
-
-#### **Xray Client JSON:**
-```json
-{
-  "outbounds": [{
-    "protocol": "vless",
-    "settings": {
-      "vnext": [{
-        "address": "your-server-ip",
-        "port": 2083,
-        "users": [{
-          "id": "your-generated-uuid",
-          "encryption": "none",
-          "flow": "xtls-rprx-vision"
-        }]
-      }]
-    },
-    "streamSettings": {
-      "network": "tcp",
-      "security": "reality",
-      "realitySettings": {
-        "serverName": "www.microsoft.com",
-        "fingerprint": "chrome",
-        "publicKey": "your-reality-public-key",
-        "shortId": "your-short-id"
-      }
-    }
-  }]
-}
-```
-
-#### **Clash Meta YAML:**
-```yaml
-proxies:
-  - name: "VLESS-Reality"
-    type: vless
-    server: your-server-ip
-    port: 2083
-    uuid: your-generated-uuid
-    network: tcp
-    tls: true
-    flow: xtls-rprx-vision
-    reality-opts:
-      public-key: your-reality-public-key
-      short-id: your-short-id
-    client-fingerprint: chrome
-    servername: www.microsoft.com
-```
-
-### **VLESS + WebSocket + TLS (Recommended for CDN)**
-
-**Connection Details:**
-- **Server:** your-domain.com
-- **Port:** 443
-- **UUID:** your-generated-uuid
-- **Network:** ws
-- **Path:** /
-- **TLS:** true
-
-#### **V2Ray Client JSON:**
-```json
-{
-  "outbounds": [{
-    "protocol": "vless",
-    "settings": {
-      "vnext": [{
-        "address": "your-domain.com",
-        "port": 443,
-        "users": [{
-          "id": "your-generated-uuid",
-          "encryption": "none"
-        }]
-      }]
-    },
-    "streamSettings": {
-      "network": "ws",
-      "security": "tls",
-      "wsSettings": {
-        "path": "/",
-        "headers": {
-          "Host": "your-domain.com"
-        }
-      },
-      "tlsSettings": {
-        "serverName": "your-domain.com"
-      }
-    }
-  }]
-}
-```
-
-#### **Clash Meta YAML:**
-```yaml
-proxies:
-  - name: "VLESS-WS"
-    type: vless
-    server: your-domain.com
-    port: 443
-    uuid: your-generated-uuid
-    network: ws
-    tls: true
-    ws-opts:
-      path: /
-      headers:
-        Host: your-domain.com
-```
-
-### **VLESS + gRPC + TLS**
-
-**Connection Details:**
-- **Server:** your-domain.com
-- **Port:** 443
-- **UUID:** your-generated-uuid
-- **Network:** grpc
-- **Service:** grpc
-- **TLS:** true
-
-#### **V2Ray Client JSON:**
-```json
-{
-  "outbounds": [{
-    "protocol": "vless",
-    "settings": {
-      "vnext": [{
-        "address": "your-domain.com",
-        "port": 443,
-        "users": [{
-          "id": "your-generated-uuid",
-          "encryption": "none"
-        }]
-      }]
-    },
-    "streamSettings": {
-      "network": "grpc",
-      "security": "tls",
-      "grpcSettings": {
-        "serviceName": "grpc"
-      },
-      "tlsSettings": {
-        "serverName": "your-domain.com"
-      }
-    }
-  }]
-}
-```
-
-### **VMess + WebSocket + TLS**
-
-**Connection Details:**
-- **Server:** your-domain.com
-- **Port:** 443
-- **UUID:** your-generated-uuid
-- **AlterID:** 0
-- **Network:** ws
-- **Path:** /ws
-- **TLS:** true
-
-#### **V2Ray Client JSON:**
-```json
-{
-  "outbounds": [{
-    "protocol": "vmess",
-    "settings": {
-      "vnext": [{
-        "address": "your-domain.com",
-        "port": 443,
-        "users": [{
-          "id": "your-generated-uuid",
-          "alterId": 0,
-          "security": "auto"
-        }]
-      }]
-    },
-    "streamSettings": {
-      "network": "ws",
-      "security": "tls",
-      "wsSettings": {
-        "path": "/ws",
-        "headers": {
-          "Host": "your-domain.com"
-        }
-      },
-      "tlsSettings": {
-        "serverName": "your-domain.com"
-      }
-    }
-  }]
-}
-```
+Minimum: 1 CPU, 512MB RAM, 2GB storage.
 
 ---
 
-## 📚 **Additional Resources**
+## License
 
-- **Xray-core Documentation:** [https://xtls.github.io/](https://xtls.github.io/)
-- **V2Ray Documentation:** [https://www.v2ray.com/](https://www.v2ray.com/)
-- **XTLS-Reality:** [https://github.com/XTLS/Xray-core](https://github.com/XTLS/Xray-core)
-- **Nginx Documentation:** [https://nginx.org/en/docs/](https://nginx.org/en/docs/)
-- **Let's Encrypt:** [https://letsencrypt.org/docs/](https://letsencrypt.org/docs/)
-- **Docker Compose:** [https://docs.docker.com/compose/](https://docs.docker.com/compose/)
-
----
-
-## 🤝 **Contributing**
-
-We welcome contributions! For issues, improvements, or new features:
-
-1. **Fork** the repository
-2. **Create** a feature branch
-3. **Submit** a pull request
-
-For questions or support, open an issue in the [GitHub repository](https://github.com/samrand96/v2ray-nginx-cloudflare).
-
----
-
-## 📄 **License**
-
-This project is licensed under the terms specified in the LICENSE file.
+See [LICENSE](LICENSE) for details.

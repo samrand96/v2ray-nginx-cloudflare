@@ -1,8 +1,7 @@
 #!/bin/sh
 
-# Xray Multi-Protocol Configuration Generator
-# This script generates the Xray config.json from template based on environment variables
-# Supports: VLESS-WS, VLESS-gRPC, VMess-WS, VLESS-XTLS-Reality
+# Xray Configuration Generator
+# Supports: VLESS-WS, VLESS-XTLS-Reality
 
 CONFIG_TEMPLATE="/etc/xray/config.template.json"
 CONFIG_OUTPUT="/etc/xray/config.json"
@@ -19,10 +18,6 @@ fi
 export V2RAY_UUID=${V2RAY_UUID:-"$(cat /proc/sys/kernel/random/uuid)"}
 export VLESS_WS_PORT=${VLESS_WS_PORT:-1310}
 export VLESS_WS_PATH=${VLESS_WS_PATH:-"/"}
-export VLESS_GRPC_PORT=${VLESS_GRPC_PORT:-1311}
-export VLESS_GRPC_SERVICE=${VLESS_GRPC_SERVICE:-"grpc"}
-export VMESS_WS_PORT=${VMESS_WS_PORT:-1312}
-export VMESS_WS_PATH=${VMESS_WS_PATH:-"/ws"}
 export VLESS_REALITY_PORT=${VLESS_REALITY_PORT:-1313}
 export REALITY_DEST=${REALITY_DEST:-"www.microsoft.com:443"}
 export REALITY_SERVER_NAME=${REALITY_SERVER_NAME:-"www.microsoft.com"}
@@ -32,8 +27,6 @@ export REALITY_SHORT_ID=${REALITY_SHORT_ID:-"abcd1234"}
 echo "📋 Configuration Summary:"
 echo "   UUID: $V2RAY_UUID"
 echo "   VLESS WebSocket: Port $VLESS_WS_PORT, Path: $VLESS_WS_PATH"
-echo "   VLESS gRPC: Port $VLESS_GRPC_PORT, Service: $VLESS_GRPC_SERVICE"
-echo "   VMess WebSocket: Port $VMESS_WS_PORT, Path: $VMESS_WS_PATH"
 echo "   VLESS Reality: Port $VLESS_REALITY_PORT, Dest: $REALITY_DEST"
 
 # Generate config by replacing environment variables
@@ -50,5 +43,5 @@ else
 fi
 
 # Start Xray
-echo "🌟 Starting Xray with multi-protocol support..."
+echo "🌟 Starting Xray..."
 exec xray run -c "$CONFIG_OUTPUT"

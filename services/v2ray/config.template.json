@@ -29,50 +29,6 @@
     },
     {
       "listen": "0.0.0.0",
-      "port": 1311,
-      "protocol": "vless",
-      "settings": {
-        "clients": [
-          {
-            "id": "${V2RAY_UUID}",
-            "flow": ""
-          }
-        ],
-        "decryption": "none"
-      },
-      "streamSettings": {
-        "network": "grpc",
-        "security": "none",
-        "grpcSettings": {
-          "serviceName": "grpc"
-        }
-      },
-      "tag": "vless-grpc"
-    },
-    {
-      "listen": "0.0.0.0",
-      "port": 1312,
-      "protocol": "vmess",
-      "settings": {
-        "clients": [
-          {
-            "id": "${V2RAY_UUID}",
-            "alterId": 0,
-            "security": "auto"
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "ws",
-        "security": "none",
-        "wsSettings": {
-          "path": "/ws"
-        }
-      },
-      "tag": "vmess-ws"
-    },
-    {
-      "listen": "0.0.0.0",
       "port": 1313,
       "protocol": "vless",
       "settings": {
