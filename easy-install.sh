@@ -268,15 +268,29 @@ get_server_ip() {
 # ============================================
 generate_reality_keys() {
     log_info "Pulling Xray Docker image (needed for key generation)..."
-    docker pull ghcr.io/xtls/xray-core:latest 2>/dev/null || true
+    if ! docker pull ghcr.io/xtls/xray-core:latest; then
+        log_warning "Docker pull failed — will try to generate keys anyway"
+    fi
 
     log_info "Generating Reality x25519 keypair..."
     REALITY_KEYS=""
     if command -v docker &>/dev/null; then
-        REALITY_KEYS=$(docker run --rm ghcr.io/xtls/xray-core x25519 2>/dev/null) || true
+        # Try default entrypoint first (image entrypoint = xray)
+        REALITY_KEYS=$(docker run --rm ghcr.io/xtls/xray-core x25519 2>&1) || true
+
+        # If that didn't produce "Private key:", try explicit binary path
+        if ! echo "$REALITY_KEYS" | grep -q "Private key:"; then
+            log_warning "Retrying with explicit xray binary path..."
+            REALITY_KEYS=$(docker run --rm --entrypoint xray ghcr.io/xtls/xray-core x25519 2>&1) || true
+        fi
+
+        # Last resort: try /usr/bin/xray
+        if ! echo "$REALITY_KEYS" | grep -q "Private key:"; then
+            REALITY_KEYS=$(docker run --rm --entrypoint /usr/bin/xray ghcr.io/xtls/xray-core x25519 2>&1) || true
+        fi
     fi
 
-    if [ -n "$REALITY_KEYS" ]; then
+    if echo "$REALITY_KEYS" | grep -q "Private key:"; then
         REALITY_PRIVATE_KEY=$(echo "$REALITY_KEYS" | grep "Private key:" | awk '{print $3}')
         REALITY_PUBLIC_KEY=$(echo "$REALITY_KEYS" | grep "Public key:" | awk '{print $3}')
         if [ -n "$REALITY_PRIVATE_KEY" ] && [ -n "$REALITY_PUBLIC_KEY" ]; then
@@ -285,11 +299,14 @@ generate_reality_keys() {
         fi
     fi
 
-    # Auto-generation failed — prompt user
+    # Auto-generation failed — show what went wrong, then prompt user
     log_error "Could not auto-generate Reality x25519 keys!"
+    if [ -n "$REALITY_KEYS" ]; then
+        log_warning "Docker output was: $REALITY_KEYS"
+    fi
     echo ""
     log_info "You MUST provide valid x25519 keys for Reality to work."
-    log_info "Generate them on another machine with: docker run --rm ghcr.io/xtls/xray-core x25519"
+    log_info "Generate them with: docker run --rm ghcr.io/xtls/xray-core x25519"
     echo ""
     read -p "Enter Reality PRIVATE key: " REALITY_PRIVATE_KEY
     while [[ -z "$REALITY_PRIVATE_KEY" ]]; do
@@ -664,23 +681,20 @@ if [ "$MODE" = "reality" ] || [ "$MODE" = "both" ]; then
     fi
     echo ""
 
-    # Generate Reality keys
-    generate_reality_keys
-
-    # Prompt for Reality port
+    # Prompt for Reality port FIRST (quick interactive step)
     if [ "$MODE" = "both" ]; then
-        echo ""
         echo "   Reality MUST use a different port from HTTPS ($HTTPS_PORT)."
         prompt_reality_port 2083 "$HTTPS_PORT"
     else
-        echo ""
         prompt_reality_port 443
     fi
+    log_success "Reality Port: $REALITY_PORT"
 
     # Prompt for Reality destination
     prompt_reality_dest
 
-    log_success "Reality Port: $REALITY_PORT"
+    # Generate Reality keys LAST (may pull Docker image / take time)
+    generate_reality_keys
 fi
 
 # ============================================
