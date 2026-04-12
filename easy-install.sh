@@ -504,20 +504,7 @@ generate_xray_config() {
     fi
 }
 
-# ============================================
-# Create domain-specific vhost file
-# ============================================
-create_vhost_file() {
-    local domain="$1"
-    
-    log_info "Creating domain-specific vhost configuration..."
-    mkdir -p vhost
-    
-    if [ -f "vhost/default" ]; then
-        cp "vhost/default" "vhost/${domain}"
-        log_success "Created vhost/${domain}"
-    fi
-}
+
 
 # ============================================
 # Display Reality connection link
@@ -706,14 +693,12 @@ create_env_file "$MODE"
 case "$MODE" in
     ws)
         generate_xray_config "v2ray/config/config.no-reality.template.json"
-        create_vhost_file "$DOMAIN"
         ;;
     reality)
         generate_xray_config "v2ray/config/config.reality-only.template.json"
         ;;
     both)
         generate_xray_config "v2ray/config/config.template.json"
-        create_vhost_file "$DOMAIN"
         ;;
 esac
 
@@ -816,9 +801,6 @@ echo ""
 echo "📋 Configuration saved to:"
 echo "   - .env (main configuration)"
 echo "   - v2ray/config/config.json (Xray config)"
-if [ "$MODE" = "ws" ] || [ "$MODE" = "both" ]; then
-    echo "   - vhost/${DOMAIN} (Nginx vhost)"
-fi
 echo ""
 
 log_success "🎉 Setup completed successfully!"

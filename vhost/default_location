@@ -1,0 +1,4 @@
+# Included INSIDE the generated location / block by docker-gen
+# Long timeouts for persistent WebSocket connections
+proxy_read_timeout 86400s;
+proxy_send_timeout 86400s;
