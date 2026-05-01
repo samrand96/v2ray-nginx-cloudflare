@@ -55,7 +55,9 @@
     {
       "protocol": "freedom",
       "tag": "freedom",
-      "settings": {}
+      "settings": {
+        "domainStrategy": "UseIPv4"
+      }
     },
     {
       "protocol": "blackhole",

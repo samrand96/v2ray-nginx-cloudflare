@@ -33,7 +33,9 @@
     {
       "protocol": "freedom",
       "tag": "freedom",
-      "settings": {}
+      "settings": {
+        "domainStrategy": "UseIPv4"
+      }
     },
     {
       "protocol": "blackhole",
@@ -67,7 +69,7 @@
       "8.8.8.8",
       "localhost"
     ],
-    "queryStrategy": "UseIP",
+    "queryStrategy": "UseIPv4",
     "tag": "dns-inbound"
   },
   "policy": {
