@@ -6,6 +6,7 @@
 {{ $debug_all := $.Env.DEBUG }}
 {{ $sha1_upstream_name := parseBool (coalesce $.Env.SHA1_UPSTREAM_NAME "false") }}
 {{ $default_root_response := coalesce $.Env.DEFAULT_ROOT "404" }}
+{{ $nginx_error_log_level := coalesce $.Env.NGINX_ERROR_LOG_LEVEL "error" }}
 
 {{ define "ssl_policy" }}
 	{{ if eq .ssl_policy "Mozilla-Modern" }}
@@ -194,7 +195,7 @@ access_log off;
 {{/* Get the SSL_POLICY defined by this container, falling back to "Mozilla-Intermediate" */}}
 {{ $ssl_policy := or ($.Env.SSL_POLICY) "Mozilla-Intermediate" }}
 {{ template "ssl_policy" (dict "ssl_policy" $ssl_policy) }}
-error_log /dev/stderr;
+error_log /dev/stderr {{ $nginx_error_log_level }};
 
 {{ if $.Env.RESOLVERS }}
 resolver {{ $.Env.RESOLVERS }};

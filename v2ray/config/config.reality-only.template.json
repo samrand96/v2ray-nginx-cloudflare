@@ -28,7 +28,7 @@
       },
       "sniffing": {
         "enabled": true,
-        "destOverride": ["http", "tls", "quic"]
+        "destOverride": ["http", "tls"]
       },
       "tag": "vless-reality"
     }
@@ -48,17 +48,12 @@
     }
   ],
   "routing": {
-    "domainStrategy": "UseIPv4",
+    "domainStrategy": "AsIs",
     "rules": [
       {
         "type": "field",
         "ip": ["::/0"],
         "outboundTag": "blackhole"
-      },
-      {
-        "type": "field",
-        "ip": ["geoip:private"],
-        "outboundTag": "freedom"
       },
       {
         "type": "field",
@@ -69,16 +64,11 @@
   },
   "dns": {
     "servers": [
-      {
-        "address": "1.1.1.1",
-        "port": 53,
-        "domains": ["geosite:geolocation-!cn"]
-      },
+      "1.1.1.1",
       "1.0.0.1",
       "8.8.8.8",
       "localhost"
     ],
-    "queryStrategy": "UseIPv4",
-    "tag": "dns-inbound"
+    "queryStrategy": "UseIPv4"
   }
 }

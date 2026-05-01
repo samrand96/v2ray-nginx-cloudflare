@@ -5,6 +5,12 @@
 # Direct connection to server on port 443
 # ============================================
 
+x-logging: &default-logging
+  driver: ${DOCKER_LOG_DRIVER:-json-file}
+  options:
+    max-size: ${DOCKER_LOG_MAX_SIZE:-2m}
+    max-file: "${DOCKER_LOG_MAX_FILE:-2}"
+
 services:
   # ============================================
   # Xray Service - VLESS + XTLS-Reality Only
@@ -14,6 +20,8 @@ services:
     container_name: ${V2RAY_CONTAINER_NAME:-v2ray}
     command: ["run", "-c", "/etc/xray/config.json"]
     restart: ${RESTART_POLICY:-always}
+    mem_limit: ${XRAY_MEMORY_LIMIT:-128m}
+    logging: *default-logging
     volumes:
       - ./v2ray/config:/etc/xray:ro
     ports:

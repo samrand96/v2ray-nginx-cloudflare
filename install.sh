@@ -651,6 +651,17 @@ ENVEOF
 RESTART_POLICY=always
 COMPOSE_PROJECT_NAME=xray-proxy
 
+# Tiny VPS performance defaults
+DOCKER_LOG_DRIVER=json-file
+DOCKER_LOG_MAX_SIZE=2m
+DOCKER_LOG_MAX_FILE=2
+NGINX_MEMORY_LIMIT=96m
+XRAY_MEMORY_LIMIT=128m
+HYSTERIA_MEMORY_LIMIT=128m
+DOCKERGEN_MEMORY_LIMIT=64m
+ACME_MEMORY_LIMIT=96m
+NGINX_ERROR_LOG_LEVEL=error
+
 # Logging Configuration
 LOG_LEVEL=warning
 ENVEOF
@@ -1109,4 +1120,7 @@ else
     echo "   - Status:    $DOCKER_COMPOSE -f $COMPOSE_FILE ps"
 fi
 echo "   - Get links: python3 vmess.py"
+if uses_ws "$MODE"; then
+    echo "   - Tiny VPS:  ./tiny-vps-mode.sh $COMPOSE_FILE"
+fi
 echo ""

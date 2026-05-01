@@ -17,7 +17,7 @@ resolver:
 
 sniff:
   enable: true
-  timeout: 2s
+  timeout: 1s
   rewriteDomain: true
   tcpPorts: 80,443
   udpPorts: all

@@ -73,6 +73,7 @@ Hysteria uses the same certificate files that nginx/acme created for your domain
 .env.example                          # Example configuration
 install.sh                            # Main interactive installer
 install-hysteria.sh                   # Standalone Hysteria installer
+tiny-vps-mode.sh                      # Stop helper containers after cert issuance
 generate-config.sh                    # Regenerate Xray config from .env
 generate-hysteria-config.sh           # Regenerate Hysteria config from .env
 docker-compose.yml                    # WS-only stack
@@ -145,6 +146,26 @@ View logs:
 docker compose -f docker-compose.modular.yml logs -f
 docker compose -f docker-compose.hysteria.yml logs -f hysteria
 ```
+
+---
+
+## Tiny VPS Performance
+
+The default configs are tuned for small VPS boxes:
+
+- Docker logs are capped at `2m` x `2` files per container.
+- Xray uses plain IPv4 DNS instead of loading geosite/geoip databases.
+- Xray log level is `warning` and nginx access logs are disabled.
+- Hysteria uses direct IPv4 outbound and a short sniff timeout.
+- Compose applies conservative memory guardrails: nginx `96m`, Xray `128m`, Hysteria `128m`, docker-gen `64m`, ACME `96m`.
+
+After certificates are issued, you can stop the nginx helper containers to save RAM:
+
+```bash
+./tiny-vps-mode.sh docker-compose.modular.yml
+```
+
+That keeps nginx and Xray running, but stops `dockergen` and `nginx-proxy-acme`. Restart those helpers before changing proxy config or renewing certificates.
 
 ---
 

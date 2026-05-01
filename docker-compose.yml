@@ -1,8 +1,16 @@
+x-logging: &default-logging
+  driver: ${DOCKER_LOG_DRIVER:-json-file}
+  options:
+    max-size: ${DOCKER_LOG_MAX_SIZE:-2m}
+    max-file: "${DOCKER_LOG_MAX_FILE:-2}"
+
 services:
 
   nginx:
     image: nginx:1.22
     container_name: nginx
+    mem_limit: ${NGINX_MEMORY_LIMIT:-96m}
+    logging: *default-logging
     ports:
       - '${HTTP_PORT:-80}:80'
       - '${HTTPS_PORT:-443}:443'
@@ -19,11 +27,14 @@ services:
     image: 'jwilder/docker-gen:0.9'
     container_name: dockergen
     restart: always
+    mem_limit: ${DOCKERGEN_MEMORY_LIMIT:-64m}
+    logging: *default-logging
     command: >-
       -notify-sighup nginx -watch /etc/docker-gen/templates/nginx.tmpl
       /etc/nginx/conf.d/default.conf
     environment:
       - DISABLE_ACCESS_LOGS=${DISABLE_ACCESS_LOGS:-1}
+      - NGINX_ERROR_LOG_LEVEL=${NGINX_ERROR_LOG_LEVEL:-error}
     volumes:
       - '/var/run/docker.sock:/tmp/docker.sock:ro'
       - './configs/nginx.tmpl:/etc/docker-gen/templates/nginx.tmpl'
@@ -37,6 +48,8 @@ services:
     restart: always
     image: nginxproxy/acme-companion:2.2
     container_name: nginx-proxy-acme
+    mem_limit: ${ACME_MEMORY_LIMIT:-96m}
+    logging: *default-logging
     volumes:
       - '/var/run/docker.sock:/var/run/docker.sock:ro'
       - './acme:/etc/acme.sh'
@@ -55,6 +68,8 @@ services:
     container_name: v2ray
     command: ["run", "-c", "/etc/xray/config.json"]
     restart: always
+    mem_limit: ${XRAY_MEMORY_LIMIT:-128m}
+    logging: *default-logging
     volumes:
       - './v2ray/config:/etc/xray:ro'
     # No extra ports - WS traffic is proxied through nginx
