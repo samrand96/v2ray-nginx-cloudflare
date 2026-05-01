@@ -1,0 +1,25 @@
+# ============================================
+# Hysteria 2 Setup
+# ============================================
+# Reuses the Let's Encrypt certificate produced by nginx-proxy/acme.
+# Hysteria is UDP direct and should not be routed through Cloudflare proxy.
+# ============================================
+
+networks:
+  v2ray-network:
+    driver: bridge
+
+services:
+  hysteria:
+    image: tobyxdd/hysteria:${HYSTERIA_VERSION:-latest}
+    container_name: ${HYSTERIA_CONTAINER_NAME:-hysteria}
+    restart: ${RESTART_POLICY:-always}
+    command: ["server", "-c", "/etc/hysteria.yaml"]
+    ports:
+      - "${HYSTERIA_PORT:-443}:${HYSTERIA_PORT:-443}/udp"
+    volumes:
+      - ./hysteria/config.yaml:/etc/hysteria.yaml:ro
+      - ./certs:/etc/hysteria/certs:ro
+      - ./logs/hysteria:/var/log/hysteria
+    networks:
+      - v2ray-network

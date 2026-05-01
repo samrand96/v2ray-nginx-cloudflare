@@ -64,6 +64,10 @@ venv/
 v2ray/config/config.json
 !v2ray/config/config.template.json
 
+# Hysteria generated configs
+hysteria/config.yaml
+!hysteria/config.template.yaml
+
 # Generated client configs
 client-configs/
 *.vmess

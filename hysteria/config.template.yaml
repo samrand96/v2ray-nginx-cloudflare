@@ -1,0 +1,36 @@
+listen: :${HYSTERIA_PORT}
+
+tls:
+  cert: /etc/hysteria/certs/${DOMAIN}.crt
+  key: /etc/hysteria/certs/${DOMAIN}.key
+  sniGuard: dns-san
+
+auth:
+  type: password
+  password: ${HYSTERIA_PASSWORD}
+
+resolver:
+  type: udp
+  udp:
+    addr: 1.1.1.1:53
+    timeout: 4s
+
+sniff:
+  enable: true
+  timeout: 2s
+  rewriteDomain: true
+  tcpPorts: 80,443
+  udpPorts: all
+
+outbounds:
+  - name: direct
+    type: direct
+    direct:
+      mode: "4"
+      fastOpen: true
+
+masquerade:
+  type: proxy
+  proxy:
+    url: ${HYSTERIA_MASQUERADE_URL}
+    rewriteHost: true

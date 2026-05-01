@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # ============================================
-# Xray Proxy Setup Script
+# Xray + Hysteria Proxy Setup Script
 # ============================================
-# Modes: VLESS+WS+CDN, VLESS+XTLS-Reality, or Both
+# Modes: VLESS+WS+CDN, VLESS+XTLS-Reality, Hysteria 2, or All
 # Supports: Ubuntu, Debian, CentOS, RHEL, Fedora, Arch, Alpine, openSUSE
 # All configuration is stored in a single .env file
 # ============================================
@@ -26,7 +26,7 @@ log_success() { echo -e "${GREEN}✅ $1${NC}"; }
 log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 log_error() { echo -e "${RED}❌ $1${NC}"; }
 
-echo "🚀 Xray Proxy Setup — VLESS-WS + VLESS-Reality"
+echo "🚀 Proxy Setup — VLESS-WS + VLESS-Reality + Hysteria 2"
 echo "================================================"
 
 # ============================================
@@ -200,6 +200,48 @@ generate_uuid() {
 }
 
 # ============================================
+# Mode helpers
+# ============================================
+uses_ws() {
+    case "$1" in
+        ws|both|all) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+uses_reality() {
+    case "$1" in
+        reality|both|all) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+uses_hysteria() {
+    case "$1" in
+        hysteria|all) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+generate_password() {
+    local password=""
+    password=$(tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c 24 || true)
+    if [ -z "$password" ]; then
+        password="$(date +%s)$RANDOM$RANDOM"
+    fi
+    echo "$password"
+}
+
+urlencode() {
+    local raw="$1"
+    if command -v jq &>/dev/null; then
+        jq -nr --arg v "$raw" '$v|@uri'
+    else
+        printf '%s' "$raw"
+    fi
+}
+
+# ============================================
 # Get random Cloudflare IP
 # ============================================
 get_cloudflare_ip() {
@@ -360,12 +402,110 @@ prompt_reality_dest() {
 }
 
 # ============================================
+# Prompt for Hysteria settings
+# ============================================
+prompt_hysteria_config() {
+    echo ""
+    echo "⚡ Hysteria 2 Setup:"
+    echo "   Hysteria uses UDP directly and reuses the Let's Encrypt cert for ${DOMAIN}."
+    echo "   It can share port 443 with nginx because nginx is TCP and Hysteria is UDP."
+    echo ""
+
+    read -p "Enter Hysteria UDP port [443]: " HYSTERIA_PORT
+    HYSTERIA_PORT=${HYSTERIA_PORT:-443}
+    if [[ ! "$HYSTERIA_PORT" =~ ^[0-9]+$ ]] || [ "$HYSTERIA_PORT" -lt 1 ] || [ "$HYSTERIA_PORT" -gt 65535 ]; then
+        log_warning "Invalid Hysteria port, using 443"
+        HYSTERIA_PORT=443
+    fi
+
+    local generated_password
+    generated_password=$(generate_password)
+    read -p "Enter Hysteria password [auto-generated]: " HYSTERIA_PASSWORD
+    HYSTERIA_PASSWORD=${HYSTERIA_PASSWORD:-$generated_password}
+
+    read -p "Enter Hysteria masquerade URL [https://www.microsoft.com/]: " HYSTERIA_MASQUERADE_URL
+    HYSTERIA_MASQUERADE_URL=${HYSTERIA_MASQUERADE_URL:-https://www.microsoft.com/}
+
+    HYSTERIA_VERSION=${HYSTERIA_VERSION:-latest}
+    HYSTERIA_CONTAINER_NAME=${HYSTERIA_CONTAINER_NAME:-hysteria}
+
+    log_success "Hysteria UDP Port: $HYSTERIA_PORT"
+}
+
+# ============================================
+# Generate Hysteria config from template
+# ============================================
+generate_hysteria_config() {
+    log_info "Generating Hysteria configuration..."
+
+    mkdir -p hysteria
+    local template_file="hysteria/config.template.yaml"
+    local output_file="hysteria/config.yaml"
+
+    if [ ! -f "$template_file" ]; then
+        log_error "Template not found: ${template_file}"
+        exit 1
+    fi
+
+    export DOMAIN="${DOMAIN}"
+    export HYSTERIA_PORT="${HYSTERIA_PORT:-443}"
+    export HYSTERIA_PASSWORD="${HYSTERIA_PASSWORD}"
+    export HYSTERIA_MASQUERADE_URL="${HYSTERIA_MASQUERADE_URL:-https://www.microsoft.com/}"
+
+    if command -v envsubst &>/dev/null; then
+        envsubst < "$template_file" > "$output_file"
+        log_success "Hysteria configuration generated (envsubst)"
+    else
+        log_error "envsubst is required to generate Hysteria config. Install gettext/gettext-base and rerun."
+        exit 1
+    fi
+}
+
+# ============================================
+# Verify/wait for certs shared with Hysteria
+# ============================================
+check_hysteria_certificate() {
+    local domain="$1"
+    [ -f "./certs/${domain}.crt" ] && [ -f "./certs/${domain}.key" ]
+}
+
+wait_for_hysteria_certificate() {
+    local domain="$1"
+    local timeout_seconds="${2:-180}"
+    local elapsed=0
+
+    if check_hysteria_certificate "$domain"; then
+        log_success "Found certificate files for ${domain}"
+        return 0
+    fi
+
+    log_info "Waiting for Let's Encrypt certificate for ${domain}..."
+    while [ "$elapsed" -lt "$timeout_seconds" ]; do
+        if check_hysteria_certificate "$domain"; then
+            log_success "Certificate is ready for Hysteria"
+            return 0
+        fi
+        sleep 5
+        elapsed=$((elapsed + 5))
+    done
+
+    log_error "Certificate files were not created in ./certs after ${timeout_seconds}s"
+    echo "Expected:"
+    echo "   ./certs/${domain}.crt"
+    echo "   ./certs/${domain}.key"
+    echo ""
+    echo "Check ACME logs:"
+    echo "   $DOCKER_COMPOSE -f docker-compose.modular.yml logs nginx-proxy-acme"
+    return 1
+}
+
+# ============================================
 # Prepare nginx-proxy vhost include files
 # ============================================
 prepare_nginx_vhost_files() {
     local mode="$1"
 
-    if [ "$mode" != "ws" ] && [ "$mode" != "both" ]; then
+    if ! uses_ws "$mode"; then
         return 0
     fi
 
@@ -404,13 +544,13 @@ EOF
 # Create .env file
 # ============================================
 create_env_file() {
-    local mode="$1"   # ws, reality, both  -- determines which vars to write
+    local mode="$1"   # ws, reality, both, all -- determines which vars to write
 
     log_info "Creating .env configuration file..."
 
     cat > .env << ENVEOF
 # ============================================
-# Xray Proxy Configuration
+# Xray + Hysteria Proxy Configuration
 # ============================================
 # Generated on $(date)
 # Mode: ${mode}
@@ -421,8 +561,8 @@ V2RAY_UUID=${UUID}
 XRAY_VERSION=latest
 ENVEOF
 
-    # WS-related vars (modes: ws, both)
-    if [ "$mode" = "ws" ] || [ "$mode" = "both" ]; then
+    # WS-related vars (modes: ws, both, all)
+    if uses_ws "$mode"; then
         cat >> .env << ENVEOF
 
 # Domain Configuration
@@ -430,6 +570,7 @@ DOMAIN=${DOMAIN}
 VIRTUAL_HOST=${DOMAIN}
 LETSENCRYPT_HOST=${DOMAIN}
 LETSENCRYPT_EMAIL=${EMAIL}
+EMAIL=${EMAIL}
 
 # VLESS-WS Port (internal)
 VLESS_WS_PORT=1310
@@ -466,8 +607,8 @@ DISABLE_ACCESS_LOGS=1
 ENVEOF
     fi
 
-    # Reality-related vars (modes: reality, both)
-    if [ "$mode" = "reality" ] || [ "$mode" = "both" ]; then
+    # Reality-related vars (modes: reality, both, all)
+    if uses_reality "$mode"; then
         cat >> .env << ENVEOF
 
 # VLESS + XTLS-Reality Configuration
@@ -478,6 +619,20 @@ REALITY_SERVER_NAME=${REALITY_SERVER_NAME}
 REALITY_PRIVATE_KEY=${REALITY_PRIVATE_KEY}
 REALITY_PUBLIC_KEY=${REALITY_PUBLIC_KEY}
 REALITY_SHORT_ID=${REALITY_SHORT_ID}
+ENVEOF
+    fi
+
+    # Hysteria-related vars (mode: all; standalone script appends these for hysteria-only)
+    if uses_hysteria "$mode"; then
+        cat >> .env << ENVEOF
+
+# Hysteria 2 Configuration
+# Hysteria is UDP direct; do not route it through Cloudflare proxy.
+HYSTERIA_VERSION=${HYSTERIA_VERSION:-latest}
+HYSTERIA_CONTAINER_NAME=${HYSTERIA_CONTAINER_NAME:-hysteria}
+HYSTERIA_PORT=${HYSTERIA_PORT:-443}
+HYSTERIA_PASSWORD=${HYSTERIA_PASSWORD}
+HYSTERIA_MASQUERADE_URL=${HYSTERIA_MASQUERADE_URL:-https://www.microsoft.com/}
 ENVEOF
     fi
 
@@ -579,6 +734,25 @@ print_reality_link() {
 }
 
 # ============================================
+# Display Hysteria connection link
+# ============================================
+print_hysteria_link() {
+    local server_ip="$1"
+    local port="$2"
+    local domain="$3"
+    local password="$4"
+    local label="$5"
+
+    if [ -z "$server_ip" ] || [ "$server_ip" = "YOUR-SERVER-IP" ]; then
+        log_error "Could not determine server IP for Hysteria link"
+        echo "hysteria2://$(urlencode "$password")@<SERVER-IP>:${port}/?sni=${domain}#${label}"
+        return 1
+    fi
+
+    echo "hysteria2://$(urlencode "$password")@${server_ip}:${port}/?sni=${domain}#${label}"
+}
+
+# ============================================
 # MAIN SCRIPT
 # ============================================
 
@@ -620,14 +794,15 @@ log_success "Using: $DOCKER_COMPOSE"
 # Clone repository if needed
 REPO_NAME="v2ray-nginx-cloudflare"
 REPO_URL="https://github.com/samrand96/v2ray-nginx-cloudflare.git"
+REPO_BRANCH="${REPO_BRANCH:-backup}"
 
 if [ -d "$REPO_NAME/.git" ]; then
     log_info "Repository exists. Updating..."
     cd "$REPO_NAME"
-    git pull origin main 2>/dev/null || log_warning "Could not update repository"
+    git pull origin "$REPO_BRANCH" 2>/dev/null || log_warning "Could not update repository"
 elif [ ! -f "docker-compose.modular.yml" ]; then
     log_info "Cloning repository..."
-    if git clone "$REPO_URL"; then
+    if git clone --branch "$REPO_BRANCH" "$REPO_URL"; then
         log_success "Repository cloned successfully"
         cd "$REPO_NAME"
     else
@@ -643,16 +818,29 @@ echo ""
 echo "🎯 Choose setup mode:"
 echo "1) VLESS + WebSocket + CDN       (requires domain, uses Cloudflare/CDN)"
 echo "2) VLESS + XTLS-Reality          (direct connection, no domain needed)"
-echo "3) Both (WS + CDN AND Reality)   (requires domain + separate Reality port)"
-read -p "Enter choice (1, 2 or 3) [1]: " SETUP_CHOICE
+echo "3) Hysteria 2                    (UDP direct, reuses existing nginx/acme cert)"
+echo "4) Both (WS + CDN AND Reality)   (requires domain + separate Reality port)"
+echo "5) All three                     (WS + Reality + Hysteria)"
+read -p "Enter choice (1, 2, 3, 4 or 5) [1]: " SETUP_CHOICE
 SETUP_CHOICE=${SETUP_CHOICE:-1}
 
 case "$SETUP_CHOICE" in
-    1) MODE="ws";      COMPOSE_FILE="docker-compose.yml";         log_info "Mode: VLESS + WebSocket + CDN" ;;
-    2) MODE="reality"; COMPOSE_FILE="docker-compose.reality.yml"; log_info "Mode: VLESS + XTLS-Reality (direct)" ;;
-    3) MODE="both";    COMPOSE_FILE="docker-compose.modular.yml"; log_info "Mode: VLESS-WS + CDN AND VLESS-Reality (dual)" ;;
+    1) MODE="ws";       COMPOSE_FILE="docker-compose.yml";         log_info "Mode: VLESS + WebSocket + CDN" ;;
+    2) MODE="reality";  COMPOSE_FILE="docker-compose.reality.yml"; log_info "Mode: VLESS + XTLS-Reality (direct)" ;;
+    3) MODE="hysteria"; COMPOSE_FILE="docker-compose.hysteria.yml"; log_info "Mode: Hysteria 2 (direct UDP)" ;;
+    4) MODE="both";     COMPOSE_FILE="docker-compose.modular.yml"; log_info "Mode: VLESS-WS + CDN AND VLESS-Reality (dual)" ;;
+    5) MODE="all";      COMPOSE_FILE="docker-compose.modular.yml"; log_info "Mode: VLESS-WS + CDN, VLESS-Reality, AND Hysteria 2" ;;
     *) log_error "Invalid choice. Exiting."; exit 1 ;;
 esac
+
+if [ "$MODE" = "hysteria" ]; then
+    if [ ! -f "./install-hysteria.sh" ]; then
+        log_error "install-hysteria.sh not found"
+        exit 1
+    fi
+    bash ./install-hysteria.sh
+    exit $?
+fi
 
 # ============================================
 # UUID generation
@@ -674,8 +862,8 @@ log_success "UUID: $UUID"
 # Collect inputs based on mode
 # ============================================
 
-# --- Domain & email (for ws and both modes) ---
-if [ "$MODE" = "ws" ] || [ "$MODE" = "both" ]; then
+# --- Domain & email (for ws, both, and all modes) ---
+if uses_ws "$MODE"; then
     echo ""
     read -p "Enter your domain: " DOMAIN
     while [[ -z "$DOMAIN" ]]; do
@@ -699,11 +887,11 @@ if [ "$MODE" = "ws" ] || [ "$MODE" = "both" ]; then
     log_success "HTTPS Port: $HTTPS_PORT"
 fi
 
-# --- Reality setup (for reality and both modes) ---
-if [ "$MODE" = "reality" ] || [ "$MODE" = "both" ]; then
+# --- Reality setup (for reality, both, and all modes) ---
+if uses_reality "$MODE"; then
     echo ""
     echo "🔐 VLESS + XTLS-Reality Setup:"
-    if [ "$MODE" = "both" ]; then
+    if uses_ws "$MODE"; then
         echo "   Reality requires its own dedicated port (separate from HTTPS)."
     else
         echo "   Reality connects DIRECTLY to your server (no CDN, no domain needed)."
@@ -711,7 +899,7 @@ if [ "$MODE" = "reality" ] || [ "$MODE" = "both" ]; then
     echo ""
 
     # Prompt for Reality port FIRST (quick interactive step)
-    if [ "$MODE" = "both" ]; then
+    if uses_ws "$MODE"; then
         echo "   Reality MUST use a different port from HTTPS ($HTTPS_PORT)."
         prompt_reality_port 2083 "$HTTPS_PORT"
     else
@@ -724,6 +912,11 @@ if [ "$MODE" = "reality" ] || [ "$MODE" = "both" ]; then
 
     # Generate Reality keys LAST (may pull Docker image / take time)
     generate_reality_keys
+fi
+
+# --- Hysteria setup (for all mode; hysteria-only is handled by install-hysteria.sh) ---
+if uses_hysteria "$MODE"; then
+    prompt_hysteria_config
 fi
 
 # ============================================
@@ -739,10 +932,14 @@ case "$MODE" in
     reality)
         generate_xray_config "v2ray/config/config.reality-only.template.json"
         ;;
-    both)
+    both|all)
         generate_xray_config "v2ray/config/config.template.json"
         ;;
 esac
+
+if uses_hysteria "$MODE"; then
+    generate_hysteria_config
+fi
 
 prepare_nginx_vhost_files "$MODE"
 
@@ -752,7 +949,7 @@ if [ -f "setup-logging.sh" ]; then
     chmod +x setup-logging.sh
     ./setup-logging.sh
 else
-    mkdir -p logs/{nginx,v2ray,docker-gen,acme}
+    mkdir -p logs/{nginx,v2ray,docker-gen,acme,hysteria}
     chmod -R 755 logs
 fi
 
@@ -760,13 +957,24 @@ fi
 # Build and start containers
 # ============================================
 echo ""
-log_info "Starting Docker containers with: $COMPOSE_FILE"
-if $DOCKER_COMPOSE -f "$COMPOSE_FILE" up -d; then
-    log_success "Docker containers started successfully!"
+if [ "$MODE" = "all" ]; then
+    log_info "Starting Xray/Nginx containers with: docker-compose.modular.yml"
+    if $DOCKER_COMPOSE -f docker-compose.modular.yml up -d; then
+        log_success "Xray/Nginx containers started successfully!"
+    else
+        log_error "Failed to start Xray/Nginx containers"
+        $DOCKER_COMPOSE -f docker-compose.modular.yml logs
+        exit 1
+    fi
 else
-    log_error "Failed to start containers"
-    $DOCKER_COMPOSE -f "$COMPOSE_FILE" logs
-    exit 1
+    log_info "Starting Docker containers with: $COMPOSE_FILE"
+    if $DOCKER_COMPOSE -f "$COMPOSE_FILE" up -d; then
+        log_success "Docker containers started successfully!"
+    else
+        log_error "Failed to start containers"
+        $DOCKER_COMPOSE -f "$COMPOSE_FILE" logs
+        exit 1
+    fi
 fi
 
 # Wait for services
@@ -774,21 +982,42 @@ log_info "Waiting for services to initialize..."
 sleep 10
 
 # Restart nginx and dockergen to apply vhost config (WS modes only)
-if [ "$MODE" = "ws" ] || [ "$MODE" = "both" ]; then
+if uses_ws "$MODE"; then
     log_info "Restarting nginx and dockergen to apply configurations..."
     $DOCKER_COMPOSE -f "$COMPOSE_FILE" restart nginx dockergen 2>/dev/null || true
     sleep 5
 fi
 
+if [ "$MODE" = "all" ]; then
+    if ! wait_for_hysteria_certificate "$DOMAIN" 180; then
+        log_error "Cannot start Hysteria without the shared certificate"
+        exit 1
+    fi
+
+    log_info "Starting Hysteria container with: docker-compose.hysteria.yml"
+    if $DOCKER_COMPOSE -f docker-compose.hysteria.yml up -d; then
+        log_success "Hysteria container started successfully!"
+    else
+        log_error "Failed to start Hysteria container"
+        $DOCKER_COMPOSE -f docker-compose.hysteria.yml logs
+        exit 1
+    fi
+fi
+
 # Show service status
 echo ""
 log_info "Service Status:"
-$DOCKER_COMPOSE -f "$COMPOSE_FILE" ps
+if [ "$MODE" = "all" ]; then
+    $DOCKER_COMPOSE -f docker-compose.modular.yml ps
+    $DOCKER_COMPOSE -f docker-compose.hysteria.yml ps
+else
+    $DOCKER_COMPOSE -f "$COMPOSE_FILE" ps
+fi
 
 # ============================================
 # Cloudflare instructions (WS modes)
 # ============================================
-if [ "$MODE" = "ws" ] || [ "$MODE" = "both" ]; then
+if uses_ws "$MODE"; then
     echo ""
     echo "🌐 Cloudflare CDN Setup:"
     echo "   1. Point your domain '$DOMAIN' to your server IP"
@@ -816,7 +1045,7 @@ echo "🖥️  Server IP: $SERVER_IP"
 echo ""
 
 # --- VLESS-WS link ---
-if [ "$MODE" = "ws" ] || [ "$MODE" = "both" ]; then
+if uses_ws "$MODE"; then
     CF_IP=$(get_cloudflare_ip)
     echo "🌐 Cloudflare IP: $CF_IP"
     echo ""
@@ -829,7 +1058,7 @@ if [ "$MODE" = "ws" ] || [ "$MODE" = "both" ]; then
 fi
 
 # --- VLESS-Reality link ---
-if [ "$MODE" = "reality" ] || [ "$MODE" = "both" ]; then
+if uses_reality "$MODE"; then
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "📱 VLESS Reality (Direct, port ${REALITY_PORT}):"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -840,19 +1069,44 @@ if [ "$MODE" = "reality" ] || [ "$MODE" = "both" ]; then
     echo ""
 fi
 
+# --- Hysteria link ---
+if uses_hysteria "$MODE"; then
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "📱 Hysteria 2 (Direct UDP, port ${HYSTERIA_PORT}):"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    print_hysteria_link "$SERVER_IP" "$HYSTERIA_PORT" "$DOMAIN" "$HYSTERIA_PASSWORD" \
+        "${SERVER_INFO// /-}-Hysteria2"
+    echo ""
+    echo "Use the server IP as the address and keep SNI set to ${DOMAIN}."
+    echo "Do NOT send Hysteria through Cloudflare proxy; it is UDP direct."
+    echo ""
+fi
+
 echo "=============================================="
 echo ""
 echo "📋 Configuration saved to:"
 echo "   - .env (main configuration)"
 echo "   - v2ray/config/config.json (Xray config)"
+if uses_hysteria "$MODE"; then
+    echo "   - hysteria/config.yaml (Hysteria config)"
+fi
 echo ""
 
 log_success "🎉 Setup completed successfully!"
 echo ""
 echo "📋 Useful commands:"
-echo "   - View logs: $DOCKER_COMPOSE -f $COMPOSE_FILE logs -f"
-echo "   - Restart:   $DOCKER_COMPOSE -f $COMPOSE_FILE restart"
-echo "   - Stop:      $DOCKER_COMPOSE -f $COMPOSE_FILE down"
-echo "   - Status:    $DOCKER_COMPOSE -f $COMPOSE_FILE ps"
+if [ "$MODE" = "all" ]; then
+    echo "   - View Xray/Nginx logs: $DOCKER_COMPOSE -f docker-compose.modular.yml logs -f"
+    echo "   - View Hysteria logs:   $DOCKER_COMPOSE -f docker-compose.hysteria.yml logs -f hysteria"
+    echo "   - Restart Xray/Nginx:   $DOCKER_COMPOSE -f docker-compose.modular.yml restart"
+    echo "   - Restart Hysteria:     $DOCKER_COMPOSE -f docker-compose.hysteria.yml restart"
+    echo "   - Stop all:             $DOCKER_COMPOSE -f docker-compose.modular.yml down && $DOCKER_COMPOSE -f docker-compose.hysteria.yml down"
+else
+    echo "   - View logs: $DOCKER_COMPOSE -f $COMPOSE_FILE logs -f"
+    echo "   - Restart:   $DOCKER_COMPOSE -f $COMPOSE_FILE restart"
+    echo "   - Stop:      $DOCKER_COMPOSE -f $COMPOSE_FILE down"
+    echo "   - Status:    $DOCKER_COMPOSE -f $COMPOSE_FILE ps"
+fi
 echo "   - Get links: python3 vmess.py"
 echo ""

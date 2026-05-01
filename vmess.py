@@ -1,9 +1,9 @@
 #!/usr/bin/python3
 
 """
-Connection Link Generator for VLESS-WS and VLESS-Reality.
+Connection Link Generator for VLESS-WS, VLESS-Reality, and Hysteria 2.
 Reads configuration from .env and v2ray/config/config.json,
-then outputs ready-to-use vless:// share links.
+then outputs ready-to-use share links.
 """
 
 import json
@@ -11,6 +11,7 @@ from pathlib import Path
 import random
 import ipaddress
 import sys
+from urllib.parse import quote
 
 
 def read_env_var(env_file, key, default=""):
@@ -64,6 +65,13 @@ def vless_reality_link(uuid, server_ip, port, public_key, short_id, server_name,
     )
 
 
+def hysteria2_link(password, server_ip, port, sni, label="Hysteria2"):
+    """Generate Hysteria 2 connection link."""
+    if not password or not server_ip or not sni:
+        return None
+    return f"hysteria2://{quote(password, safe='')}@{server_ip}:{port}/?sni={sni}#{label}"
+
+
 # ============================================
 # Main
 # ============================================
@@ -71,14 +79,15 @@ path = Path(__file__).parent
 env_file = path / ".env"
 config_file = path / "v2ray" / "config" / "config.json"
 
-# Read UUID from config.json
+# Read UUID from .env or config.json
+uuid = read_env_var(env_file, "V2RAY_UUID")
 try:
     with open(str(config_file), "r", encoding="utf-8") as f:
         v2ray_config = json.load(f)
     uuid = v2ray_config["inbounds"][0]["settings"]["clients"][0]["id"]
 except (FileNotFoundError, KeyError, json.JSONDecodeError) as e:
-    print(f"❌ Error reading {config_file}: {e}")
-    sys.exit(1)
+    if not uuid:
+        uuid = ""
 
 # Read configuration from .env
 domain = read_env_var(env_file, "DOMAIN")
@@ -88,13 +97,20 @@ reality_public_key = read_env_var(env_file, "REALITY_PUBLIC_KEY", "")
 reality_short_id = read_env_var(env_file, "REALITY_SHORT_ID", "abcd1234")
 reality_server_name = read_env_var(env_file, "REALITY_SERVER_NAME", "www.microsoft.com")
 vless_ws_path = read_env_var(env_file, "VLESS_WS_PATH", "/")
+hysteria_port = read_env_var(env_file, "HYSTERIA_PORT", "443")
+hysteria_password = read_env_var(env_file, "HYSTERIA_PASSWORD", "")
 
 has_ws = bool(domain)
 has_reality = bool(reality_public_key) and reality_public_key != "CHANGE-THIS-PUBLIC-KEY"
+has_hysteria = bool(domain) and bool(hysteria_password) and hysteria_password != "CHANGE-THIS-PASSWORD"
 
-if not has_ws and not has_reality:
+if not has_ws and not has_reality and not has_hysteria:
     print("❌ No valid configuration found in .env")
-    print("   Run easy-install.sh first or configure .env manually.")
+    print("   Run install.sh first or configure .env manually.")
+    sys.exit(1)
+
+if (has_ws or has_reality) and not uuid:
+    print(f"❌ Error reading UUID from .env or {config_file}")
     sys.exit(1)
 
 # ============================================
@@ -152,5 +168,19 @@ if has_reality:
             print("     vless://<UUID>@<IP>:<PORT>?type=tcp&security=reality&pbk=<PUB_KEY>&fp=chrome&sni=<SNI>&sid=<SID>&flow=xtls-rprx-vision#<NAME>")
 elif not has_ws:
     pass  # Already handled above
+
+# ============================================
+# Hysteria 2 Link
+# ============================================
+if has_hysteria:
+    server_ip = input("\nEnter your server IP for Hysteria 2 (direct UDP): ").strip()
+    if not server_ip:
+        print("⚠️  No server IP provided. Skipping Hysteria link.")
+    else:
+        link = hysteria2_link(hysteria_password, server_ip, hysteria_port, domain, f"{domain}-Hysteria2")
+        if link:
+            print(f"\n📱 Hysteria 2 (direct UDP, port {hysteria_port}):")
+            print(link)
+            print("   Use server IP as address and keep SNI set to your certificate domain.")
 
 print()
