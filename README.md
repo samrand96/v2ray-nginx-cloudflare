@@ -80,7 +80,8 @@ docker-compose.reality.yml        # Reality-only mode (xray only)
 easy-install.sh                   # Interactive setup script
 generate-config.sh                # Regenerate xray config from .env
 vmess.py                          # Generate connection share links
-vhost/default                     # Nginx WebSocket proxy config
+vhost/default                     # Safe server-level nginx include (no location blocks)
+vhost/default_location            # WebSocket timeout overrides inside generated location /
 v2ray/config/
 ├── config.template.json          # Xray template (WS + Reality)
 ├── config.no-reality.template.json   # Xray template (WS only)

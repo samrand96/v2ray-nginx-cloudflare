@@ -360,6 +360,47 @@ prompt_reality_dest() {
 }
 
 # ============================================
+# Prepare nginx-proxy vhost include files
+# ============================================
+prepare_nginx_vhost_files() {
+    local mode="$1"
+
+    if [ "$mode" != "ws" ] && [ "$mode" != "both" ]; then
+        return 0
+    fi
+
+    log_info "Preparing Nginx vhost include files..."
+    mkdir -p vhost
+
+    # Keep this server-level include free of location blocks.
+    # nginx.tmpl already emits the ACME challenge location.
+    cat > vhost/default <<'EOF'
+# ============================================
+# Default vhost server-level directives
+# ============================================
+# Included at SERVER level by nginx-proxy for any vhost
+# that does NOT have a domain-specific file.
+#
+# Keep this file free of location blocks. configs/nginx.tmpl
+# already defines the ACME challenge location, and duplicating it
+# here makes nginx fail with:
+# duplicate location "/.well-known/acme-challenge/"
+#
+# For location-level overrides, use vhost/default_location.
+# ============================================
+EOF
+
+    cat > vhost/default_location <<'EOF'
+# Included INSIDE the generated location / block by docker-gen
+# Long timeouts for persistent WebSocket connections
+proxy_read_timeout 86400s;
+proxy_send_timeout 86400s;
+EOF
+
+    log_success "Nginx vhost include files prepared"
+}
+
+# ============================================
 # Create .env file
 # ============================================
 create_env_file() {
@@ -701,6 +742,8 @@ case "$MODE" in
         generate_xray_config "v2ray/config/config.template.json"
         ;;
 esac
+
+prepare_nginx_vhost_files "$MODE"
 
 # Setup logging directories
 log_info "Setting up logging directories..."

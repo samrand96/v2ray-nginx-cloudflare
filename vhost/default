@@ -4,9 +4,10 @@
 # Included at SERVER level by nginx-proxy for any vhost
 # that does NOT have a domain-specific file.
 #
-# DO NOT put location blocks here — they are auto-generated
-# by docker-gen from nginx.tmpl.
+# Keep this file free of location blocks. configs/nginx.tmpl
+# already defines the ACME challenge location, and duplicating it
+# here makes nginx fail with:
+# duplicate location "/.well-known/acme-challenge/"
 #
-# For location-level overrides (timeouts, etc.), use
-# vhost/default_location instead.
+# For location-level overrides, use vhost/default_location.
 # ============================================
