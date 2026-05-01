@@ -216,7 +216,7 @@ docker compose -f <COMPOSE-FILE> down
 python3 vmess.py
 
 # Test xray config
-docker compose -f <COMPOSE-FILE> exec v2ray xray run -test -c /etc/xray/config.json
+docker compose -f <COMPOSE-FILE> exec v2ray /usr/local/bin/xray run -test -c /etc/xray/config.json
 ```
 
 Replace `<COMPOSE-FILE>` with your compose file (`docker-compose.yml`, `docker-compose.modular.yml`, or `docker-compose.reality.yml`).
@@ -238,7 +238,7 @@ docker compose -f <COMPOSE-FILE> logs v2ray
 docker compose -f <COMPOSE-FILE> logs nginx
 
 # Verify xray config
-docker compose -f <COMPOSE-FILE> exec v2ray cat /etc/xray/config.json
+cat v2ray/config/config.json
 ```
 
 ### SSL Certificate Issues (WS mode)

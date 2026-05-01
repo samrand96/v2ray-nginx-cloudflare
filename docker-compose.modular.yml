@@ -102,6 +102,7 @@ services:
   v2ray:
     image: ghcr.io/xtls/xray-core:${XRAY_VERSION:-latest}
     container_name: ${V2RAY_CONTAINER_NAME:-v2ray}
+    command: ["run", "-c", "/etc/xray/config.json"]
     restart: ${RESTART_POLICY:-always}
     environment:
       - VIRTUAL_HOST=${DOMAIN:-your-domain.com}
@@ -110,7 +111,6 @@ services:
       - VIRTUAL_PORT=${VLESS_WS_PORT:-1310}
     volumes:
       - ./v2ray/config:/etc/xray:ro
-      - ./logs/v2ray:/var/log/v2ray
     ports:
       # Reality port exposed directly (bypasses nginx/CDN)
       - "${REALITY_PORT:-2083}:1313"

@@ -567,7 +567,7 @@ print_reality_link() {
         echo "   To get your connection link manually:"
         echo ""
         echo "   1. Check your public key:  grep REALITY_PUBLIC_KEY .env"
-        echo "   2. Check your config:      docker exec v2ray cat /etc/xray/config.json"
+        echo "   2. Check your config:      cat v2ray/config/config.json"
         echo "   3. Build the link manually:"
         echo "      vless://<UUID>@<SERVER-IP>:<PORT>?type=tcp&security=reality&pbk=<PUBLIC-KEY>&fp=chrome&sni=<SNI>&sid=<SHORT-ID>&flow=xtls-rprx-vision#<NAME>"
         echo ""

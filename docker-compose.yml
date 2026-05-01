@@ -51,10 +51,10 @@ services:
   v2ray:
     image: ghcr.io/xtls/xray-core:${XRAY_VERSION:-latest}
     container_name: v2ray
+    command: ["run", "-c", "/etc/xray/config.json"]
     restart: always
     volumes:
       - './v2ray/config:/etc/xray:ro'
-      - './logs/v2ray:/var/log/v2ray'
     # No extra ports - WS traffic is proxied through nginx
     environment:
       - VIRTUAL_HOST=${DOMAIN}

@@ -12,10 +12,10 @@ services:
   v2ray:
     image: ghcr.io/xtls/xray-core:${XRAY_VERSION:-latest}
     container_name: ${V2RAY_CONTAINER_NAME:-v2ray}
+    command: ["run", "-c", "/etc/xray/config.json"]
     restart: ${RESTART_POLICY:-always}
     volumes:
       - ./v2ray/config:/etc/xray:ro
-      - ./logs/v2ray:/var/log/v2ray
     ports:
       # Reality listens on port 443 directly (no nginx needed)
-      - "443:443"
+      - "${REALITY_PORT:-443}:443"

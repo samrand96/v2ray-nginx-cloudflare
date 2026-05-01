@@ -147,7 +147,7 @@ if has_reality:
             print("\n❌ Could not generate Reality link.")
             print("   Check that REALITY_PUBLIC_KEY is set in .env")
             print("   You can read the config manually:")
-            print("     docker exec v2ray cat /etc/xray/config.json")
+            print("     cat v2ray/config/config.json")
             print("   Then build the link:")
             print("     vless://<UUID>@<IP>:<PORT>?type=tcp&security=reality&pbk=<PUB_KEY>&fp=chrome&sni=<SNI>&sid=<SID>&flow=xtls-rprx-vision#<NAME>")
 elif not has_ws:
