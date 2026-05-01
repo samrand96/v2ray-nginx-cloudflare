@@ -23,7 +23,7 @@ You can install one mode, WS + Reality together, or all three together.
 Run the current branch installer:
 
 ```bash
-sudo env REPO_BRANCH=backup bash <(curl -fsSL https://raw.githubusercontent.com/samrand96/v2ray-nginx-cloudflare/backup/install.sh)
+sudo bash <(curl -fsSL https://raw.githubusercontent.com/samrand96/v2ray-nginx-cloudflare/backup/install.sh)
 ```
 
 The installer asks you to choose:
