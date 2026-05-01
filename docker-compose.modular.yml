@@ -54,6 +54,8 @@ services:
       -notify-sighup ${NGINX_CONTAINER_NAME:-nginx} -watch 
       ${TEMPLATE_PATH:-/etc/docker-gen/templates/nginx.tmpl}
       ${OUTPUT_PATH:-/etc/nginx/conf.d/default.conf}
+    environment:
+      - DISABLE_ACCESS_LOGS=${DISABLE_ACCESS_LOGS:-1}
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
       - ./configs/nginx.tmpl:/etc/docker-gen/templates/nginx.tmpl

@@ -462,6 +462,7 @@ OUTPUT_PATH=/etc/nginx/conf.d/default.conf
 # ACME/SSL Settings
 ACME_CA_URI=https://acme-v02.api.letsencrypt.org/directory
 DEBUG=0
+DISABLE_ACCESS_LOGS=1
 ENVEOF
     fi
 
@@ -496,7 +497,7 @@ RESTART_POLICY=always
 COMPOSE_PROJECT_NAME=xray-proxy
 
 # Logging Configuration
-LOG_LEVEL=info
+LOG_LEVEL=warning
 ENVEOF
 
     log_success ".env file created"
