@@ -23,6 +23,10 @@
           "path": "/"
         }
       },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls", "quic"]
+      },
       "tag": "vless-ws"
     },
     {
@@ -48,6 +52,10 @@
           "shortIds": ["${REALITY_SHORT_ID}"]
         }
       },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls", "quic"]
+      },
       "tag": "vless-reality"
     }
   ],
@@ -66,8 +74,13 @@
     }
   ],
   "routing": {
-    "domainStrategy": "AsIs",
+    "domainStrategy": "UseIPv4",
     "rules": [
+      {
+        "type": "field",
+        "ip": ["::/0"],
+        "outboundTag": "blackhole"
+      },
       {
         "type": "field",
         "ip": ["geoip:private"],
@@ -86,6 +99,7 @@
       "1.0.0.1",
       "8.8.8.8",
       "localhost"
-    ]
+    ],
+    "queryStrategy": "UseIPv4"
   }
 }

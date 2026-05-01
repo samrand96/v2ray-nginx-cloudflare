@@ -23,6 +23,10 @@
           "path": "/"
         }
       },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls", "quic"]
+      },
       "tag": "vless-ws"
     }
   ],
@@ -41,8 +45,13 @@
     }
   ],
   "routing": {
-    "domainStrategy": "AsIs",
+    "domainStrategy": "UseIPv4",
     "rules": [
+      {
+        "type": "field",
+        "ip": ["::/0"],
+        "outboundTag": "blackhole"
+      },
       {
         "type": "field",
         "ip": ["geoip:private"],
