@@ -184,6 +184,8 @@ docker compose -f docker-compose.modular.yml exec nginx nginx -t
 
 If ACME fails, confirm port `80/tcp` is open, DNS points to the server IP, and Cloudflare proxy is disabled during issuance.
 
+To test port 80 from another machine: `curl -I http://<domain>/` — any HTTP response (even 403/503) means the port is open; a timeout means it is blocked. Open it with `ufw allow 80/tcp` or `firewall-cmd --permanent --add-port=80/tcp && firewall-cmd --reload`, and remember that provider firewalls (AWS security groups, Oracle, Hetzner, GCP, ...) must be opened in the provider's panel as well.
+
 If the certificate is missing after a failed attempt, the ACME companion only retries once per hour on its own. Trigger an immediate retry with:
 
 ```bash

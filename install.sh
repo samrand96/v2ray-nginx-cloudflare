@@ -398,6 +398,90 @@ preflight_dns_check() {
 }
 
 # ============================================
+# Firewall / port 80 helpers
+# ============================================
+# Let's Encrypt HTTP-01 requires inbound 80/tcp. Open the host firewall for
+# every port the chosen mode needs; provider firewalls (security groups)
+# still have to be opened in the provider's panel.
+open_firewall_ports() {
+    local mode="$1"
+    local ports=()
+
+    if uses_ws "$mode"; then
+        ports+=("80/tcp" "${HTTPS_PORT:-443}/tcp")
+    fi
+    if uses_reality "$mode" && [ -n "${REALITY_PORT:-}" ]; then
+        ports+=("${REALITY_PORT}/tcp")
+    fi
+    if uses_hysteria "$mode" && [ -n "${HYSTERIA_PORT:-}" ]; then
+        ports+=("${HYSTERIA_PORT}/udp")
+    fi
+    [ ${#ports[@]} -gt 0 ] || return 0
+
+    local SUDO=""
+    [ "$EUID" -ne 0 ] && SUDO="sudo"
+
+    if command -v ufw &>/dev/null && $SUDO ufw status 2>/dev/null | grep -qi "Status: active"; then
+        log_info "ufw firewall is active — allowing required ports..."
+        local p
+        for p in "${ports[@]}"; do
+            $SUDO ufw allow "$p" >/dev/null 2>&1 && log_success "ufw: allowed $p" || log_warning "ufw: could not allow $p"
+        done
+    elif command -v firewall-cmd &>/dev/null && $SUDO firewall-cmd --state 2>/dev/null | grep -q "running"; then
+        log_info "firewalld is running — allowing required ports..."
+        local p
+        for p in "${ports[@]}"; do
+            $SUDO firewall-cmd --permanent --add-port="$p" >/dev/null 2>&1 && log_success "firewalld: allowed $p" || log_warning "firewalld: could not allow $p"
+        done
+        $SUDO firewall-cmd --reload >/dev/null 2>&1 || true
+    else
+        log_info "No active ufw/firewalld detected — nothing to open on the host."
+    fi
+
+    log_warning "If your provider has an external firewall/security group (AWS, Oracle,"
+    log_warning "Hetzner, GCP, ...), also open these ports there: ${ports[*]}"
+}
+
+# End-to-end self-test of the ACME challenge path: serve a token from the
+# webroot nginx shares with the ACME companion and fetch it over port 80.
+# Failure usually means inbound 80/tcp is blocked by a firewall.
+verify_acme_http_reachability() {
+    local domain="$1"
+    local nginx_container="${NGINX_CONTAINER_NAME:-nginx}"
+    local token="port80-selftest-$$-$RANDOM"
+    local challenge_dir="/usr/share/nginx/html/.well-known/acme-challenge"
+    local fetched=""
+
+    log_info "Testing that port 80 reaches this server (ACME challenge path)..."
+
+    if ! docker exec "$nginx_container" sh -c "mkdir -p ${challenge_dir} && echo ok > ${challenge_dir}/${token}" 2>/dev/null; then
+        log_warning "Could not place a test file in the nginx webroot; skipping port 80 self-test."
+        return 0
+    fi
+
+    fetched=$(curl -4 -m 10 -s "http://${domain}/.well-known/acme-challenge/${token}" 2>/dev/null || true)
+    docker exec "$nginx_container" rm -f "${challenge_dir}/${token}" 2>/dev/null || true
+
+    if [ "$fetched" = "ok" ]; then
+        log_success "Port 80 is reachable and the ACME challenge path works"
+        return 0
+    fi
+
+    log_warning "Could not fetch the ACME test file via http://${domain}/ — port 80/tcp"
+    log_warning "is most likely blocked from the outside."
+    echo "   Check, in this order:"
+    echo "   1. Provider firewall/security group: allow inbound 80/tcp (and 443)"
+    echo "   2. Host firewall:  ufw allow 80/tcp   or   firewall-cmd --add-port=80/tcp"
+    echo "   3. From another machine, run:  curl -I http://${domain}/"
+    echo "      ANY response (even 403/503) means port 80 is open; a timeout means blocked."
+    echo ""
+    echo "   Note: some NATed servers cannot reach their own public IP, so this"
+    echo "   self-test can fail even when the port is open from outside."
+    echo "   Continuing to wait for the certificate anyway..."
+    return 1
+}
+
+# ============================================
 # Generate Reality x25519 keypair
 # ============================================
 generate_reality_keys() {
@@ -1074,6 +1158,9 @@ if uses_hysteria "$MODE"; then
     prompt_hysteria_config
 fi
 
+# All ports are known now — open the host firewall before the ACME flow
+open_firewall_ports "$MODE"
+
 # ============================================
 # Create .env and generate Xray config
 # ============================================
@@ -1150,6 +1237,7 @@ fi
 
 # Wait for the Let's Encrypt certificate (WS modes)
 if uses_ws "$MODE"; then
+    verify_acme_http_reachability "$DOMAIN" || true
     if ! wait_for_certificate "$DOMAIN"; then
         if [ "$MODE" = "all" ]; then
             log_error "Cannot start Hysteria without the shared certificate"
