@@ -739,7 +739,7 @@ wait_for_certificate() {
                 return 1
             fi
             acme_errors=$(docker logs --tail 80 "$acme_container" 2>&1 | \
-                grep -Ei "verify error|invalid response|challenge.*(failed|invalid)|rateLimited|too many certificates|unauthorized|timeout during connect|error creating new order|NXDOMAIN|urn:ietf:params:acme:error" | \
+                grep -Ei "verify error|invalid response|challenge.*(failed|invalid)|rateLimited|too many certificates|unauthorized|timeout during connect|error creating new order|curl error|Can not init api|get to authz error|NXDOMAIN|urn:ietf:params:acme:error" | \
                 tail -3 || true)
             if [ -n "$acme_errors" ] && [ "$acme_errors" != "$last_reported_error" ]; then
                 log_warning "ACME companion reported:"
