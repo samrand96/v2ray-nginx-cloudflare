@@ -442,6 +442,60 @@ open_firewall_ports() {
     log_warning "Hetzner, GCP, ...), also open these ports there: ${ports[*]}"
 }
 
+# Refuse to start if a non-Docker process already holds a port nginx needs;
+# nginx would just crash-loop on the bind and ACME could never succeed.
+check_port_conflicts() {
+    local mode="$1"
+    uses_ws "$mode" || return 0
+    command -v ss &>/dev/null || return 0
+
+    local port listener
+    for port in 80 "${HTTPS_PORT:-443}"; do
+        listener=$(ss -lntpH 2>/dev/null | awk -v p=":${port}" '{ n=split($4,a,":"); if (a[n] == substr(p,2)) { print $NF; exit } }')
+        [ -n "$listener" ] || continue
+        case "$listener" in
+            *docker*|*containerd*) ;;  # a previous run of this stack; compose will take over
+            *)
+                log_error "Port ${port}/tcp is already in use by: ${listener}"
+                echo "   nginx cannot bind this port, so the container would crash-loop and"
+                echo "   Let's Encrypt validation could never succeed."
+                echo "   Stop and disable the conflicting service first, e.g.:"
+                echo "      systemctl stop apache2 nginx caddy 2>/dev/null"
+                echo "      systemctl disable apache2 nginx caddy 2>/dev/null"
+                read -p "Press Enter to abort, or type 'c' to continue anyway: " PORT_CHOICE
+                if [[ ! "$PORT_CHOICE" =~ ^[Cc]$ ]]; then
+                    exit 1
+                fi
+                ;;
+        esac
+    done
+}
+
+container_is_running() {
+    [ "$(docker inspect -f '{{.State.Running}}' "$1" 2>/dev/null)" = "true" ]
+}
+
+# Detect a crash-looping container and surface its own logs — the real
+# failure reason is in there, not in the ACME companion's output.
+report_if_crashlooping() {
+    local name="$1"
+    local restarts
+    restarts=$(docker inspect -f '{{.RestartCount}}' "$name" 2>/dev/null || echo 0)
+
+    if container_is_running "$name" && [ "${restarts:-0}" -lt 3 ]; then
+        return 0
+    fi
+
+    log_error "Container '${name}' is not staying up (restart count: ${restarts})."
+    echo "Last logs from '${name}':"
+    docker logs --tail 25 "$name" 2>&1 | sed 's/^/   /' || true
+    echo ""
+    echo "Common causes:"
+    echo "   - Another process on the host holds port 80/443 (check: ss -lntp | grep -E ':(80|443)\\b')"
+    echo "   - Invalid nginx configuration (check: docker exec ${name} nginx -t)"
+    return 1
+}
+
 # End-to-end self-test of the ACME challenge path: serve a token from the
 # webroot nginx shares with the ACME companion and fetch it over port 80.
 # Failure usually means inbound 80/tcp is blocked by a firewall.
@@ -680,6 +734,10 @@ wait_for_certificate() {
         # Every 30s: show progress and surface ACME errors as they happen
         if [ $((elapsed % 30)) -eq 0 ]; then
             log_info "Still waiting for certificate... (${elapsed}s/${timeout_seconds}s)"
+            if ! report_if_crashlooping "${NGINX_CONTAINER_NAME:-nginx}"; then
+                log_error "nginx is down — Let's Encrypt validation cannot succeed. Aborting the wait."
+                return 1
+            fi
             acme_errors=$(docker logs --tail 80 "$acme_container" 2>&1 | \
                 grep -Ei "verify error|invalid response|challenge.*(failed|invalid)|rateLimited|too many certificates|unauthorized|timeout during connect|error creating new order|NXDOMAIN|urn:ietf:params:acme:error" | \
                 tail -3 || true)
@@ -1195,6 +1253,9 @@ else
     chmod -R 755 logs
 fi
 
+# Fail early if something else already owns nginx's ports (WS modes)
+check_port_conflicts "$MODE"
+
 # ============================================
 # Build and start containers
 # ============================================
@@ -1237,6 +1298,11 @@ fi
 
 # Wait for the Let's Encrypt certificate (WS modes)
 if uses_ws "$MODE"; then
+    # A crash-looping nginx means validation can never succeed — fail fast
+    # with nginx's own logs instead of waiting out the full timeout.
+    if ! report_if_crashlooping "${NGINX_CONTAINER_NAME:-nginx}"; then
+        exit 1
+    fi
     verify_acme_http_reachability "$DOMAIN" || true
     if ! wait_for_certificate "$DOMAIN"; then
         if [ "$MODE" = "all" ]; then
