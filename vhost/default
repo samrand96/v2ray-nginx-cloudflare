@@ -1,12 +1,13 @@
 # ============================================
 # Default vhost server-level directives
 # ============================================
-# Included at SERVER level by nginx-proxy for any vhost
-# that does NOT have a domain-specific file.
+# Included at SERVER level by nginx-proxy.
 #
-# Keep this file free of location blocks. configs/nginx.tmpl
-# already defines the ACME challenge location, and duplicating it
-# here makes nginx fail with:
+# nginxproxy/acme-companion may populate this file with:
+# location ^~ /.well-known/acme-challenge/ { ... }
+#
+# Do not add a second ACME challenge location in configs/nginx.tmpl,
+# or nginx will fail with:
 # duplicate location "/.well-known/acme-challenge/"
 #
 # For location-level overrides, use vhost/default_location.

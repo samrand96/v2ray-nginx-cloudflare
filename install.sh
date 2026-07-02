@@ -792,18 +792,20 @@ prepare_nginx_vhost_files() {
     log_info "Preparing Nginx vhost include files..."
     mkdir -p vhost
 
-    # Keep this server-level include free of location blocks.
-    # nginx.tmpl already emits the ACME challenge location.
+    # Keep this server-level include controlled by the ACME companion.
+    # The companion may write the ACME challenge location here; nginx.tmpl
+    # intentionally does not emit its own copy to avoid duplicate locations.
     cat > vhost/default <<'EOF'
 # ============================================
 # Default vhost server-level directives
 # ============================================
-# Included at SERVER level by nginx-proxy for any vhost
-# that does NOT have a domain-specific file.
+# Included at SERVER level by nginx-proxy.
 #
-# Keep this file free of location blocks. configs/nginx.tmpl
-# already defines the ACME challenge location, and duplicating it
-# here makes nginx fail with:
+# nginxproxy/acme-companion may populate this file with:
+# location ^~ /.well-known/acme-challenge/ { ... }
+#
+# Do not add a second ACME challenge location in configs/nginx.tmpl,
+# or nginx will fail with:
 # duplicate location "/.well-known/acme-challenge/"
 #
 # For location-level overrides, use vhost/default_location.
