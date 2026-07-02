@@ -15,10 +15,7 @@ yarn-error.log*
 .docker/
 docker-compose.override.yml
 
-# SSL Certificates (if any)
-*.pem
-*.crt
-*.key
+# SSL certificates generated at runtime
 certs/
 
 # ACME/Let's Encrypt data
@@ -34,7 +31,6 @@ html/
 
 # OS generated files
 .DS_Store
-.DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
@@ -76,4 +72,3 @@ client-configs/
 # Temporary files
 temp/
 tmp/
-.DS_Store
