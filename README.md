@@ -186,7 +186,7 @@ If ACME fails, confirm port `80/tcp` is open, DNS points to the server IP, and C
 
 To test port 80 from another machine: `curl -I http://<domain>/` — any HTTP response (even 403/503) means the port is open; a timeout means it is blocked. Open it with `ufw allow 80/tcp` or `firewall-cmd --permanent --add-port=80/tcp && firewall-cmd --reload`, and remember that provider firewalls (AWS security groups, Oracle, Hetzner, GCP, ...) must be opened in the provider's panel as well.
 
-The installer forces the ACME companion's outbound Let's Encrypt API calls over IPv4 by default (`ACME_FORCE_IPV4=1`) because many VPS/Docker setups resolve IPv6 records without having a working IPv6 route. Set `ACME_FORCE_IPV4=0` only for IPv6-only environments.
+The installer uses `ACME_FORCE_IPV4=auto` by default: it leaves the ACME companion dual-stack when IPv6 connectivity works, and only forces outbound Let's Encrypt API calls over IPv4 when IPv6 routing is broken. Set `ACME_FORCE_IPV4=1` to always force IPv4, or `ACME_FORCE_IPV4=0` to never force it.
 
 If the certificate is missing after a failed attempt, the ACME companion only retries once per hour on its own. Trigger an immediate retry with:
 
