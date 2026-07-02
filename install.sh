@@ -300,9 +300,101 @@ get_server_info() {
 # Get server public IP
 # ============================================
 get_server_ip() {
-    timeout 10 curl -s --connect-timeout 5 ifconfig.me 2>/dev/null || \
-    timeout 10 curl -s --connect-timeout 5 icanhazip.com 2>/dev/null || \
+    timeout 10 curl -4s --connect-timeout 5 ifconfig.me 2>/dev/null || \
+    timeout 10 curl -4s --connect-timeout 5 icanhazip.com 2>/dev/null || \
     echo "YOUR-SERVER-IP"
+}
+
+# ============================================
+# DNS preflight helpers
+# ============================================
+ip_to_int() {
+    local IFS=.
+    local a b c d
+    read -r a b c d <<< "$1"
+    echo $(( (a << 24) + (b << 16) + (c << 8) + d ))
+}
+
+ip_in_cloudflare_range() {
+    local ip="$1"
+    [ -f "cloudflare_ip_list.txt" ] || return 1
+    [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
+
+    local ip_int cidr network prefix net_int mask
+    ip_int=$(ip_to_int "$ip")
+    while IFS= read -r cidr; do
+        [[ "$cidr" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]] || continue
+        network=${cidr%/*}
+        prefix=${cidr#*/}
+        [ "$prefix" -le 32 ] || continue
+        net_int=$(ip_to_int "$network")
+        mask=$(( (0xFFFFFFFF << (32 - prefix)) & 0xFFFFFFFF ))
+        if [ $(( ip_int & mask )) -eq $(( net_int & mask )) ]; then
+            return 0
+        fi
+    done < cloudflare_ip_list.txt
+    return 1
+}
+
+resolve_domain_ipv4() {
+    local domain="$1"
+    local resolved=""
+
+    if command -v dig &>/dev/null; then
+        resolved=$(dig +short A "$domain" 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+    fi
+    if [ -z "$resolved" ] && command -v getent &>/dev/null; then
+        resolved=$(getent ahostsv4 "$domain" 2>/dev/null | awk '{print $1; exit}' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+    fi
+    if [ -z "$resolved" ] && command -v nslookup &>/dev/null; then
+        resolved=$(nslookup "$domain" 2>/dev/null | awk '/^Address: /{print $2}' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+    fi
+
+    echo "$resolved"
+}
+
+# Verify the domain points at this server BEFORE starting the ACME flow.
+# Let's Encrypt HTTP-01 cannot succeed until DNS resolves to this machine.
+preflight_dns_check() {
+    local domain="$1"
+    local server_ip="$2"
+
+    echo ""
+    echo "🌐 DNS Setup (required BEFORE the certificate can be issued):"
+    echo "   1. Create/point an A record for '${domain}' to this server's IP: ${server_ip}"
+    echo "   2. If the domain is on Cloudflare, set it to 'DNS only' (grey cloud)"
+    echo "      until the certificate is issued. You can enable the proxy afterwards."
+    echo ""
+
+    if [ "$server_ip" = "YOUR-SERVER-IP" ]; then
+        log_warning "Could not detect this server's public IP; skipping automatic DNS verification."
+        read -p "Press Enter once the DNS record for ${domain} points to this server..."
+        return 0
+    fi
+
+    local resolved
+    while true; do
+        resolved=$(resolve_domain_ipv4 "$domain")
+        if [ -z "$resolved" ]; then
+            log_warning "No IPv4 A record found for ${domain} yet."
+        elif [ "$resolved" = "$server_ip" ]; then
+            log_success "DNS check passed: ${domain} -> ${resolved}"
+            return 0
+        elif ip_in_cloudflare_range "$resolved"; then
+            log_warning "${domain} resolves to a Cloudflare proxy IP (${resolved})."
+            echo "   The domain is behind the orange cloud. Issuance can still work if"
+            echo "   'Always Use HTTPS' is disabled in Cloudflare, but switching the"
+            echo "   record to 'DNS only' (grey cloud) until the cert is issued is far"
+            echo "   more reliable."
+        else
+            log_warning "${domain} resolves to ${resolved}, but this server's IP is ${server_ip}."
+        fi
+        read -p "Press Enter to re-check DNS, or type 'c' to continue anyway: " DNS_CHOICE
+        if [[ "$DNS_CHOICE" =~ ^[Cc]$ ]]; then
+            log_warning "Continuing without DNS verification — certificate issuance may fail."
+            return 0
+        fi
+    done
 }
 
 # ============================================
@@ -462,31 +554,65 @@ generate_hysteria_config() {
 }
 
 # ============================================
-# Verify/wait for certs shared with Hysteria
+# Verify/wait for the Let's Encrypt certificate
 # ============================================
-check_hysteria_certificate() {
+check_certificate_files() {
     local domain="$1"
     [ -f "./certs/${domain}.crt" ] && [ -f "./certs/${domain}.key" ]
 }
 
-wait_for_hysteria_certificate() {
-    local domain="$1"
-    local timeout_seconds="${2:-180}"
-    local elapsed=0
+# Ask the ACME companion to run its issuance loop NOW instead of waiting
+# for its built-in hourly retry (e.g. after nginx was restarted mid-challenge).
+kick_acme_companion() {
+    local acme_container="${ACME_CONTAINER_NAME:-nginx-proxy-acme}"
+    docker exec "$acme_container" /app/signal_le_service >/dev/null 2>&1 || \
+    docker exec "$acme_container" /app/force_renew >/dev/null 2>&1 || true
+}
 
-    if check_hysteria_certificate "$domain"; then
+wait_for_certificate() {
+    local domain="$1"
+    local timeout_seconds="${2:-${CERT_WAIT_TIMEOUT:-300}}"
+    local acme_container="${ACME_CONTAINER_NAME:-nginx-proxy-acme}"
+    local elapsed=0
+    local kicked=0
+    local last_reported_error=""
+    local acme_errors=""
+
+    if check_certificate_files "$domain"; then
         log_success "Found certificate files for ${domain}"
         return 0
     fi
 
-    log_info "Waiting for Let's Encrypt certificate for ${domain}..."
+    log_info "Waiting for Let's Encrypt certificate for ${domain} (up to ${timeout_seconds}s)..."
     while [ "$elapsed" -lt "$timeout_seconds" ]; do
-        if check_hysteria_certificate "$domain"; then
-            log_success "Certificate is ready for Hysteria"
+        if check_certificate_files "$domain"; then
+            log_success "Certificate is ready: ./certs/${domain}.crt"
             return 0
         fi
+
         sleep 5
         elapsed=$((elapsed + 5))
+
+        # Every 30s: show progress and surface ACME errors as they happen
+        if [ $((elapsed % 30)) -eq 0 ]; then
+            log_info "Still waiting for certificate... (${elapsed}s/${timeout_seconds}s)"
+            acme_errors=$(docker logs --tail 80 "$acme_container" 2>&1 | \
+                grep -Ei "verify error|invalid response|challenge.*(failed|invalid)|rateLimited|too many certificates|unauthorized|timeout during connect|error creating new order|NXDOMAIN|urn:ietf:params:acme:error" | \
+                tail -3 || true)
+            if [ -n "$acme_errors" ] && [ "$acme_errors" != "$last_reported_error" ]; then
+                log_warning "ACME companion reported:"
+                echo "$acme_errors" | sed 's/^/   /'
+                last_reported_error="$acme_errors"
+            fi
+        fi
+
+        # Halfway through with no cert: trigger an immediate retry instead of
+        # relying on the companion's hourly loop
+        if [ "$kicked" -eq 0 ] && [ "$elapsed" -ge $((timeout_seconds / 2)) ]; then
+            kicked=1
+            log_info "No certificate yet — asking the ACME companion to retry now..."
+            kick_acme_companion
+        fi
     done
 
     log_error "Certificate files were not created in ./certs after ${timeout_seconds}s"
@@ -494,8 +620,20 @@ wait_for_hysteria_certificate() {
     echo "   ./certs/${domain}.crt"
     echo "   ./certs/${domain}.key"
     echo ""
-    echo "Check ACME logs:"
-    echo "   $DOCKER_COMPOSE -f docker-compose.modular.yml logs nginx-proxy-acme"
+    echo "Last ACME companion log lines:"
+    docker logs --tail 40 "$acme_container" 2>&1 | sed 's/^/   /' || true
+    echo ""
+    echo "Checklist:"
+    echo "   - DNS A record for ${domain} points to this server's public IP"
+    echo "   - If on Cloudflare: record is 'DNS only' (grey cloud), or at least"
+    echo "     'Always Use HTTPS' is disabled during issuance"
+    echo "   - Port 80/tcp is open in your firewall/provider security group"
+    echo "   - Let's Encrypt rate limits not exceeded (5 duplicate certs/week)"
+    echo ""
+    echo "Follow live ACME logs with:"
+    echo "   $DOCKER_COMPOSE -f ${COMPOSE_FILE:-docker-compose.modular.yml} logs -f nginx-proxy-acme"
+    echo "Then retry issuance immediately with:"
+    echo "   docker exec ${acme_container} /app/signal_le_service"
     return 1
 }
 
@@ -896,6 +1034,12 @@ if uses_ws "$MODE"; then
     echo "   HTTP port 80 is REQUIRED for Let's Encrypt and cannot be changed."
     HTTPS_PORT=443
     log_success "HTTPS Port: $HTTPS_PORT"
+
+    # DNS must point here BEFORE containers start, or the ACME HTTP-01
+    # challenge can never succeed and the certificate wait will time out.
+    log_info "Detecting this server's public IP..."
+    SERVER_PUBLIC_IP=$(get_server_ip)
+    preflight_dns_check "$DOMAIN" "$SERVER_PUBLIC_IP"
 fi
 
 # --- Reality setup (for reality, both, and all modes) ---
@@ -997,14 +1141,26 @@ if uses_ws "$MODE"; then
     log_info "Restarting nginx and dockergen to apply configurations..."
     $DOCKER_COMPOSE -f "$COMPOSE_FILE" restart nginx dockergen 2>/dev/null || true
     sleep 5
+    # The restart above can interrupt the ACME companion's first issuance
+    # attempt, and its built-in retry only fires hourly. Trigger a fresh
+    # attempt now so the certificate wait below doesn't stall.
+    log_info "Triggering certificate issuance..."
+    kick_acme_companion
+fi
+
+# Wait for the Let's Encrypt certificate (WS modes)
+if uses_ws "$MODE"; then
+    if ! wait_for_certificate "$DOMAIN"; then
+        if [ "$MODE" = "all" ]; then
+            log_error "Cannot start Hysteria without the shared certificate"
+            exit 1
+        fi
+        log_warning "Continuing setup — the ACME companion keeps retrying in the background."
+        log_warning "The VLESS-WS link will start working once the certificate is issued."
+    fi
 fi
 
 if [ "$MODE" = "all" ]; then
-    if ! wait_for_hysteria_certificate "$DOMAIN" 180; then
-        log_error "Cannot start Hysteria without the shared certificate"
-        exit 1
-    fi
-
     log_info "Starting Hysteria container with: docker-compose.hysteria.yml"
     if $DOCKER_COMPOSE -f docker-compose.hysteria.yml up -d; then
         log_success "Hysteria container started successfully!"
@@ -1031,10 +1187,10 @@ fi
 if uses_ws "$MODE"; then
     echo ""
     echo "🌐 Cloudflare CDN Setup:"
-    echo "   1. Point your domain '$DOMAIN' to your server IP"
-    echo "   2. In Cloudflare dashboard:"
+    echo "   Your DNS record already points to this server. Now, in the"
+    echo "   Cloudflare dashboard:"
     echo "      - Set SSL/TLS mode to 'Full (strict)' or 'Full'"
-    echo "      - Enable 'Proxy' (orange cloud) for your domain"
+    echo "      - Enable 'Proxy' (orange cloud) for '$DOMAIN'"
     echo ""
     read -p "Press Enter when you've configured Cloudflare..."
 fi
@@ -1045,7 +1201,7 @@ fi
 echo ""
 log_info "Getting server info..."
 SERVER_INFO=$(get_server_info)
-SERVER_IP=$(get_server_ip)
+SERVER_IP=${SERVER_PUBLIC_IP:-$(get_server_ip)}
 
 echo ""
 echo "=============================================="

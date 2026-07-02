@@ -20,6 +20,8 @@ You can install one mode, WS + Reality together, or all three together.
 
 ## Quick Install
 
+Before running the installer for WS/Both/All modes, point your domain's DNS A record to the server IP and keep it **DNS only** (grey cloud) in Cloudflare — the installer verifies this and waits for the Let's Encrypt certificate. You enable the orange-cloud proxy after the certificate is issued.
+
 Run the current branch installer:
 
 ```bash
@@ -181,6 +183,14 @@ docker compose -f docker-compose.modular.yml exec nginx nginx -t
 ```
 
 If ACME fails, confirm port `80/tcp` is open, DNS points to the server IP, and Cloudflare proxy is disabled during issuance.
+
+If the certificate is missing after a failed attempt, the ACME companion only retries once per hour on its own. Trigger an immediate retry with:
+
+```bash
+docker exec nginx-proxy-acme /app/signal_le_service
+```
+
+The installer waits up to 300 seconds for the certificate; on slow networks you can extend this with `CERT_WAIT_TIMEOUT=600 sudo -E bash install.sh`.
 
 ### Reality
 
