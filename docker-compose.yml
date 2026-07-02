@@ -57,6 +57,7 @@ services:
       - './certs:/etc/nginx/certs'
       - './vhost:/etc/nginx/vhost.d'
       - './html:/usr/share/nginx/html'
+      - './acme-curlrc:/root/.curlrc:ro'
       - './logs/acme:/var/log/acme'
     environment:
       - DEFAULT_EMAIL=${LETSENCRYPT_EMAIL:-your-email@example.com}

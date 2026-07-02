@@ -471,6 +471,25 @@ check_port_conflicts() {
     done
 }
 
+# Configure curl for acme.sh inside nginx-proxy-acme. Some VPS providers expose
+# IPv6 DNS answers inside Docker even though IPv6 routing is unavailable, which
+# makes ACME API calls fail intermittently with curl error 35.
+prepare_acme_curl_config() {
+    if [ "${ACME_FORCE_IPV4:-1}" = "0" ]; then
+        cat > acme-curlrc <<'EOF'
+# ACME_FORCE_IPV4=0: do not force curl address family for acme.sh.
+EOF
+        return 0
+    fi
+
+    cat > acme-curlrc <<'EOF'
+# Force acme.sh's outbound CA API requests through IPv4 by default.
+# Some VPS/Docker setups advertise IPv6 DNS answers but have no IPv6 route,
+# which makes Let's Encrypt API calls intermittently fail with curl error 35.
+ipv4
+EOF
+}
+
 container_is_running() {
     [ "$(docker inspect -f '{{.State.Running}}' "$1" 2>/dev/null)" = "true" ]
 }
@@ -885,6 +904,7 @@ OUTPUT_PATH=/etc/nginx/conf.d/default.conf
 # ACME/SSL Settings
 ACME_CA_URI=https://acme-v02.api.letsencrypt.org/directory
 DEBUG=0
+ACME_FORCE_IPV4=${ACME_FORCE_IPV4:-1}
 DISABLE_ACCESS_LOGS=1
 ENVEOF
     fi
@@ -1244,6 +1264,7 @@ if uses_hysteria "$MODE"; then
 fi
 
 prepare_nginx_vhost_files "$MODE"
+prepare_acme_curl_config
 
 # Setup logging directories
 log_info "Setting up logging directories..."

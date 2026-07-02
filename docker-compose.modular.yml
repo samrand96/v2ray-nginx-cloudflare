@@ -98,6 +98,7 @@ services:
       - ./certs:/etc/nginx/certs
       - ./vhost:/etc/nginx/vhost.d
       - nginx-html:/usr/share/nginx/html
+      - ./acme-curlrc:/root/.curlrc:ro
       - ./logs/acme:/var/log/acme
     environment:
       - DEFAULT_EMAIL=${LETSENCRYPT_EMAIL:-your-email@example.com}
@@ -135,4 +136,3 @@ services:
       - v2ray-network
     depends_on:
       - nginx
-
